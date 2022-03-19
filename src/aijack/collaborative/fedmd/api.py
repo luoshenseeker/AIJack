@@ -13,11 +13,12 @@ class FedMDAPI(BaseFLKnowledgeDistillationAPI):
         validation_dataloader,
         criterion,
         client_optimizers,
-        num_communication=10,
+        num_communication=1,
         device="cpu",
         consensus_epoch=1,
         revisit_epoch=1,
-        transfer_epoch=10,
+        transfer_epoch_public=1,
+        transfer_epoch_private=1,
     ):
         super().__init__(
             server,
@@ -32,34 +33,8 @@ class FedMDAPI(BaseFLKnowledgeDistillationAPI):
         self.client_optimizers = client_optimizers
         self.consensus_epoch = consensus_epoch
         self.revisit_epoch = revisit_epoch
-        self.transfer_epoch = transfer_epoch
-
-    def train_client(self, public=True):
-        loss_on_local_dataest = []
-        for client_idx in range(self.client_num):
-            client = self.clients[client_idx]
-            if public:
-                trainloader = self.public_dataloader
-            else:
-                trainloader = self.local_dataloaders[client_idx]
-            optimizer = self.client_optimizers[client_idx]
-
-            running_loss = 0.0
-            for data in trainloader:
-                x, y = data
-                x = x.to(self.device)
-                y = y.to(self.device)
-
-                optimizer.zero_grad()
-                loss = self.criterion(client(x), y)
-                loss.backward()
-                optimizer.step()
-
-                running_loss += loss.item()
-
-            loss_on_local_dataest.append(copy.deepcopy(running_loss / len(trainloader)))
-
-        return loss_on_local_dataest
+        self.transfer_epoch_public = transfer_epoch_public
+        self.transfer_epoch_private = transfer_epoch_private
 
     def run(self):
         logging = {
@@ -71,13 +46,21 @@ class FedMDAPI(BaseFLKnowledgeDistillationAPI):
             "acc": [],
         }
 
-        for i in range(self.transfer_epoch):
-            loss_public = self.train_client(public=True)
-            loss_local = self.train_client(public=False)
-            print(f"epoch {i} (public - pretrain): {loss_local}")
-            print(f"epoch {i} (local - pretrain): {loss_public}")
-            logging["loss_client_public_dataset_transfer"].append(loss_public)
-            logging["loss_client_local_dataset_transfer"].append(loss_local)
+        cnt = 0
+        while True:
+            if self.transfer_epoch_public > cnt:
+                loss_public = self.train_client(public=True)
+                print(f"epoch {cnt} (public - pretrain): {loss_public}")
+                logging["loss_client_public_dataset_transfer"].append(loss_public)
+
+            if self.transfer_epoch_private > cnt:
+                loss_local = self.train_client(public=False)
+                print(f"epoch {cnt} (local - pretrain): {loss_public}")
+                logging["loss_client_local_dataset_transfer"].append(loss_local)
+
+            cnt += 1
+            if cnt >= self.transfer_epoch_public and cnt >= self.transfer_epoch_private:
+                break
 
         for i in range(1, self.num_communication + 1):
             self.server.update()
@@ -100,11 +83,9 @@ class FedMDAPI(BaseFLKnowledgeDistillationAPI):
             logging["loss_client_revisit"].append(loss_local_revisit)
 
             # evaluation
-            temp_acc_list = []
-            for j, client in enumerate(self.clients):
-                acc = client.score(self.validation_dataloader)
-                print(f"client {j} acc score is ", acc)
-                temp_acc_list.append(acc)
-            logging["acc"].append(temp_acc_list)
+            if self.validation_dataloader is not None:
+                acc = self.score(self.validation_dataloader)
+                print(f"epoch={i} acc: ", acc)
+                logging["acc"].append(copy.deepcopy(acc))
 
         return logging
