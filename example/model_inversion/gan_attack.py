@@ -9,7 +9,7 @@ from sklearn.metrics import accuracy_score
 
 from aijack.attack import GAN_Attack
 from aijack.collaborative import FedAvgClient, FedAvgServer
-from aijack.utils import NumpyDataset
+from aijack.utils import NumpyDataset, loadConfig
 
 # Number of channels in the training images. For color images this is 3
 nc = 1
@@ -71,13 +71,14 @@ class Net(nn.Module):
         return x
 
 
-def prepare_dataloaders():
-    at_t_dataset_train = torchvision.datasets.MNIST(
-        root="./", train=True, download=True
-    )
-    at_t_dataset_test = torchvision.datasets.MNIST(
-        root="./", train=False, download=True
-    )
+def prepare_dataloaders(dataset_name):
+    if dataset_name == "MNIST":
+        at_t_dataset_train = torchvision.datasets.MNIST(
+            root="./", train=True, download=True
+        )
+        at_t_dataset_test = torchvision.datasets.MNIST(
+            root="./", train=False, download=True
+        )
 
     X = at_t_dataset_train.data.numpy()
     y = at_t_dataset_train.targets.numpy()
@@ -116,25 +117,35 @@ def main():
     device = torch.device("cuda:0") if torch.cuda.is_available() else "cpu"
     print(device)
 
-    X, y, trainloaders, global_trainloader, dataset_nums = prepare_dataloaders()
+    config = loadConfig("C:\\Users\\luoshenseeker\\home\\work\\科研\\new\\AIJack\\config.yaml", True)
+    print(config)
+    batch_size = config['para']['batch_size']
+
+    X, y, trainloaders, global_trainloader, dataset_nums = prepare_dataloaders(config['dataset'])
 
     criterion = nn.CrossEntropyLoss()
     client_num = 2
     adversary_client_id = 1
-    target_label = 3
+    target_label = config['para']['target_label']
 
     net_1 = Net()
     client_1 = FedAvgClient(net_1, user_id=0)
     client_1.to(device)
     optimizer_1 = optim.SGD(
-        client_1.parameters(), lr=0.02, weight_decay=1e-7, momentum=0.9
+        client_1.parameters(), 
+        lr=config['para']['client_1']['lr'], 
+        weight_decay=float(config['para']['client_1']['weight_decay']), 
+        momentum=config['para']['client_1']['momentum']
     )
 
     net_2 = Net()
     client_2 = FedAvgClient(net_2, user_id=1)
     client_2.to(device)
     optimizer_2 = optim.SGD(
-        client_2.parameters(), lr=0.02, weight_decay=1e-7, momentum=0.9
+        client_2.parameters(), 
+        lr=config['para']['client_2']['lr'], 
+        weight_decay=float(config['para']['client_2']['weight_decay']), 
+        momentum=config['para']['client_2']['momentum']
     )
 
     clients = [client_1, client_2]
@@ -143,7 +154,10 @@ def main():
     generator = Generator(nz, nc, ngf)
     generator.to(device)
     optimizer_g = optim.SGD(
-        generator.parameters(), lr=0.05, weight_decay=1e-7, momentum=0.0
+        generator.parameters(), 
+        lr=config['para']['generator']['lr'], 
+        weight_decay=float(config['para']['generator']['weight_decay']), 
+        momentum=config['para']['generator']['momentum']
     )
     gan_attacker = GAN_Attack(
         client_2,
@@ -157,12 +171,14 @@ def main():
 
     global_model = Net()
     global_model.to(device)
-    server = FedAvgServer(clients, global_model)
+
+    if config['update_type'] == 'fedAVG':
+        server = FedAvgServer(clients, global_model)
 
     fake_batch_size = batch_size
-    fake_label = 10
+    fake_label = config['para']['fake_label']
 
-    for epoch in range(5):
+    for epoch in range(config['para']['epoch']):
         for client_idx in range(client_num):
             client = clients[client_idx]
             trainloader = trainloaders[client_idx]

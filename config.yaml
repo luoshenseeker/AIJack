@@ -1,0 +1,19 @@
+update_type: fedAVG
+dataset: MNIST
+para:
+  epoch: 5
+  target_label: 3
+  fake_label: 10
+  batch_size: 64
+  client_1:
+    lr: 0.02
+    weight_decay: 1e-7
+    momentum: 0.9
+  client_2:
+    lr: 0.02
+    weight_decay: 1e-7
+    momentum: 0.9
+  generator:
+    lr: 0.05
+    weight_decay: 1e-7
+    momentum: 0.0
