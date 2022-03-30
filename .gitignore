@@ -4,6 +4,8 @@ example/*/*.png
 example/*/*.jpg
 example/*/MNIST
 papers/*
+output/*
+output/*.png
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

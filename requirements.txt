@@ -2,5 +2,7 @@ numpy
 tqdm
 sklearn
 torch
-torchvision
+torchvision==0.7
 pybind11
+matplotlib
+yaml
