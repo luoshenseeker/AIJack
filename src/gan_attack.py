@@ -75,10 +75,10 @@ class Net(nn.Module):
 def prepare_dataloaders(dataset_name):
     if dataset_name == "MNIST":
         at_t_dataset_train = torchvision.datasets.MNIST(
-            root="./", train=True, download=True
+            root="./data/", train=True, download=True
         )
         at_t_dataset_test = torchvision.datasets.MNIST(
-            root="./", train=False, download=True
+            root="./data/", train=False, download=True
         )
 
     X = at_t_dataset_train.data.numpy()
@@ -226,7 +226,11 @@ def main():
         server.distribtue()
 
         gan_attacker.update_discriminator()
-        gan_attacker.update_generator(batch_size=64, epoch=1000, log_interval=100)
+        gan_attacker.update_generator(
+            config['para']['generator']['batch_size'], 
+            config['para']['generator']['epoch'], 
+            config['para']['generator']['log_interval']
+        )
 
         in_preds = []
         in_label = []
