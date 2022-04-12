@@ -1,7 +1,8 @@
 update_type: fedAVG
 dataset: MNIST
+imagesize: 4
 para:
-  epoch: 150
+  epoch: 1
   target_label: 3
   fake_label: 10
   batch_size: 64

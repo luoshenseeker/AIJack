@@ -125,6 +125,7 @@ def main():
     config = loadConfig("/home/shengy/luoshenseeker/AIJack/config.yaml", True)
     print(config)
     batch_size = config['para']['batch_size']
+    image_size = config['imagesize']
 
     X, y, trainloaders, global_trainloader, dataset_nums = prepare_dataloaders(config['dataset'])
 
@@ -264,7 +265,13 @@ def main():
             )
             / (10 * (28 * 28)),
         )
-        plt.imshow(reconstructed_image * 0.5 + 0.5, vmin=-1, vmax=1, cmap='gray')
+        # print(reconstructed_image)
+        fig = plt.figure(frameon=False)
+        fig.set_size_inches(image_size, image_size)
+        ax = plt.Axes(fig, [0., 0., 1., 1.])
+        ax.set_axis_off()
+        fig.add_axes(ax)
+        plt.imshow(reconstructed_image * 0.5 + 0.5, vmin=-1, vmax=1, cmap='gray', )
         plt.savefig(f"output/{epoch}.png")
 
 
