@@ -1,5 +1,6 @@
 import numpy as np
 import os
+import time
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -197,7 +198,8 @@ def main():
                 inputs = inputs.to(device)
                 labels = labels.to(device)
 
-                if epoch != 0 and client_idx == adversary_client_id:
+                # TODO: Poisoning control to be added here.
+                if epoch >= 1 and client_idx == adversary_client_id:
                     fake_image = gan_attacker.attack(fake_batch_size)
                     inputs = torch.cat([inputs, fake_image])
                     labels = torch.cat(
@@ -276,4 +278,6 @@ def main():
 
 
 if __name__ == "__main__":
+    print("start at:" + time.asctime(time.localtime(time.time())))
     main()
+    print("Finish at" + time.asctime(time.localtime(time.time())))

@@ -1,8 +1,9 @@
 update_type: fedAVG
 dataset: MNIST
 imagesize: 4
+generate_all: True
 para:
-  epoch: 1
+  epoch: 500
   target_label: 3
   fake_label: 10
   batch_size: 64
@@ -19,5 +20,5 @@ para:
     weight_decay: 1e-7
     momentum: 0.0
     batch_size: 64
-    epoch: 100
+    epoch: 5
     log_interval: 100
