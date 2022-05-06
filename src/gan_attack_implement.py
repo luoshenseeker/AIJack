@@ -25,6 +25,17 @@ ngf = 64
 # Batch Size
 batch_size = 64
 
+import platform
+
+sysstr = platform.system()
+if sysstr == "Linux":
+    # paths
+    config_path = "/home/shengy/luoshenseeker/AIJack/config.yaml"
+elif sysstr == "Windows":
+    # paths
+    config_path = "C:\\Users\\luoshenseeker\\home\\work\\科研\\new\\AIJack\\config.yaml"
+else:
+    config_path = "/home/shengy/luoshenseeker/AIJack/config.yaml"
 
 class Generator(nn.Module):
     def __init__(self, nz, nc, ngf):
@@ -127,7 +138,7 @@ def main():
             print("Path doesn't exist: output")
             exit(1)
 
-        config = loadConfig("/home/shengy/luoshenseeker/AIJack/config.yaml", True)
+        config = loadConfig(config_path, True)
         print(config)
         batch_size = config['para']['batch_size']
         image_size = config['imagesize']
