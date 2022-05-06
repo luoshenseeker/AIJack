@@ -203,11 +203,17 @@ def main():
         privacy_engines = []
 
         for client_idx in range(client_num):
+            privacy_engine = PrivacyEngine()
             client = clients[client_idx]
             trainloader = trainloaders[client_idx]
             optimizer = optimizers[client_idx]
-            privacy_engine = PrivacyEngine(client, max_grad_norm=1.0, batch_size=batch_size, noise_multiplier=1.1, sample_size=len(trainloader))
-            privacy_engine.attach(optimizer)
+            client, optimizer, trainloader = privacy_engine.make_private(
+                module=client,
+                optimizer=optimizer,
+                data_loader=trainloader,
+                noise_multiplier=1.1,
+                max_grad_norm=1.0,
+            )
             privacy_engines.append(privacy_engine)
             
         for epoch in range(config['para']['epoch']):
