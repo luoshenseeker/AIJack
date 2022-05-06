@@ -189,9 +189,10 @@ def main():
         fake_batch_size = batch_size
         fake_label = config['para']['fake_label']
 
-        privacy_engine = PrivacyEngine()
+        privacy_engines = []
 
         for client_idx in range(client_num):
+            privacy_engine = PrivacyEngine()
             client = clients[client_idx]
             trainloader = trainloaders[client_idx]
             optimizer = optimizers[client_idx]
@@ -202,6 +203,8 @@ def main():
                 noise_multiplier=1.1,
                 max_grad_norm=1.0,
             )
+            privacy_engines.append(privacy_engine)
+            
         for epoch in range(config['para']['epoch']):
             for client_idx in range(client_num):
                 client = clients[client_idx]
