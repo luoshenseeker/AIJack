@@ -37,6 +37,14 @@ elif sysstr == "Windows":
 else:
     config_path = "/home/shengy/luoshenseeker/AIJack/config.yaml"
 
+import pickle
+
+
+def save_pkl(dictionnary, directory, file_name):
+    """Save the dictionnary in the directory under the file_name with pickle"""
+    with open(f"output/{directory}/{file_name}.pkl", "wb") as output:
+        pickle.dump(dictionnary, output)
+
 class Generator(nn.Module):
     def __init__(self, nz, nc, ngf):
         super(Generator, self).__init__()
