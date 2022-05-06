@@ -1,5 +1,6 @@
 from cgitb import reset
 import numpy as np
+import argparse
 import os
 import time
 import torch
@@ -136,10 +137,17 @@ def prepare_dataloaders(dataset_name):
 
     return X, y, [trainloader_1, trainloader_2], global_trainloader, [200, 200]
 
+def get_filename(args):
+    if args.privacy:
+        return "_".join(["dp", f"n{args.max_grad_norm}", f"m{args.noise_multiplier}"]) 
+    else:
+        return "normal"
 
-def main():
+def main(args):
     device = torch.device("cuda:0") if torch.cuda.is_available() else "cpu"
     print(device)
+
+    file_name = get_filename(args)
 
     if not os.path.exists('output'):
         print("Path doesn't exist: output")
@@ -149,6 +157,7 @@ def main():
     print(config)
     batch_size = config['para']['batch_size']
     image_size = config['imagesize']
+    n_iter = config['para']['epoch']
 
     X, y, trainloaders, global_trainloader, dataset_nums = prepare_dataloaders(config['dataset'])
 
@@ -207,17 +216,24 @@ def main():
     fake_batch_size = batch_size
     fake_label = config['para']['fake_label']
 
+    loss_hist = np.zeros((n_iter + 1, client_num))
+    acc_hist = np.zeros((n_iter + 1, client_num))
+
     privacy_engines = []
 
     for client_idx in range(client_num):
         client = clients[client_idx]
         trainloader = trainloaders[client_idx]
         optimizer = optimizers[client_idx]
-        privacy_engine = PrivacyEngine(client, max_grad_norm=1.0, batch_size=batch_size, noise_multiplier=1.1, sample_size=len(trainloader))
+        privacy_engine = PrivacyEngine(
+            client, max_grad_norm=args.max_grad_norm, 
+            batch_size=batch_size, noise_multiplier=args.noise_multiplier, 
+            sample_size=len(trainloader)
+        )
         privacy_engine.attach(optimizer)
         privacy_engines.append(privacy_engine)
         
-    for epoch in range(config['para']['epoch']):
+    for epoch in range(n_iter):
         for client_idx in range(client_num):
             client = clients[client_idx]
             trainloader = trainloaders[client_idx]
@@ -257,6 +273,8 @@ def main():
                 running_loss / dataset_nums[client_idx],
             )
 
+            loss_hist[epoch, client_idx] = running_loss / dataset_nums[client_idx]
+
         server.update()
         server.distribtue()
 
@@ -278,12 +296,15 @@ def main():
                 in_label.append(labels)
             in_preds = torch.cat(in_preds)
             in_label = torch.cat(in_label)
-        print(
-            f"epoch {epoch}: accuracy is ",
-            accuracy_score(
+        acc =  accuracy_score(
                 np.array(torch.argmax(in_preds, axis=1).cpu()), np.array(in_label)
             ),
+        print(
+            f"epoch {epoch}: accuracy is ",
+            acc
         )
+        acc_hist[epoch, 0] = acc[0]
+        acc_hist[epoch, 1] = acc[0]
 
         reconstructed_image = gan_attacker.attack(1).cpu().numpy().reshape(28, 28)
         print(
@@ -307,9 +328,18 @@ def main():
         fig.add_axes(ax)
         plt.imshow(reconstructed_image * 0.5 + 0.5, vmin=-1, vmax=1, cmap='gray', )
         plt.savefig(f"output/{epoch}.png")
+    save_pkl(loss_hist, "loss", file_name)
+    save_pkl(acc_hist, "acc", file_name)
+    os.system(f"zip output/pic/{file_name}.zip output/*.png")
+    os.system("rm output/*.png")
 
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-p', '--privacy', dest="privacy", action='store_true', help="Implement dp.")
+    parser.add_argument("--max_grad_norm", type=float, default=1)
+    parser.add_argument("--noise_multiplier", type=float, default=1.1)
+    args = parser.parse_args()
     print("start at:" + time.asctime(time.localtime(time.time())))
-    main()
+    main(args)
     print("Finish at" + time.asctime(time.localtime(time.time())))
