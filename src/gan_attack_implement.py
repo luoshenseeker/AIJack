@@ -1,3 +1,4 @@
+from cgitb import reset
 import numpy as np
 import os
 import time
@@ -12,6 +13,8 @@ from sklearn.metrics import accuracy_score
 from aijack.attack import GAN_Attack
 from aijack.collaborative import FedAvgClient, FedAvgServer
 from aijack.utils import NumpyDataset, loadConfig
+
+from opacus import PrivacyEngine
 
 # Number of channels in the training images. For color images this is 3
 nc = 1
@@ -116,168 +119,192 @@ def prepare_dataloaders(dataset_name):
 
 
 def main():
-    device = torch.device("cuda:0") if torch.cuda.is_available() else "cpu"
-    print(device)
+    try:
+        device = torch.device("cuda:0") if torch.cuda.is_available() else "cpu"
+        print(device)
 
-    if not os.path.exists('output'):
-        print("Path doesn't exist: output")
-        exit(1)
+        if not os.path.exists('output'):
+            print("Path doesn't exist: output")
+            exit(1)
 
-    config = loadConfig("/home/shengy/luoshenseeker/AIJack/config.yaml", True)
-    print(config)
-    batch_size = config['para']['batch_size']
-    image_size = config['imagesize']
+        config = loadConfig("/home/shengy/luoshenseeker/AIJack/config.yaml", True)
+        print(config)
+        batch_size = config['para']['batch_size']
+        image_size = config['imagesize']
 
-    X, y, trainloaders, global_trainloader, dataset_nums = prepare_dataloaders(config['dataset'])
+        X, y, trainloaders, global_trainloader, dataset_nums = prepare_dataloaders(config['dataset'])
 
-    criterion = nn.CrossEntropyLoss()
-    client_num = 2
-    adversary_client_id = 1
-    target_label = config['para']['target_label']
+        criterion = nn.CrossEntropyLoss()
+        client_num = 2
+        adversary_client_id = 1
+        target_label = config['para']['target_label']
 
-    net_1 = Net()
-    client_1 = FedAvgClient(net_1, user_id=0)
-    client_1.to(device)
-    optimizer_1 = optim.SGD(
-        client_1.parameters(), 
-        lr=config['para']['client_1']['lr'], 
-        weight_decay=float(config['para']['client_1']['weight_decay']), 
-        momentum=config['para']['client_1']['momentum']
-    )
+        net_1 = Net()
+        client_1 = FedAvgClient(net_1, user_id=0)
+        client_1.to(device)
+        optimizer_1 = optim.SGD(
+            client_1.parameters(), 
+            lr=config['para']['client_1']['lr'], 
+            weight_decay=float(config['para']['client_1']['weight_decay']), 
+            momentum=config['para']['client_1']['momentum']
+        )
 
-    net_2 = Net()
-    client_2 = FedAvgClient(net_2, user_id=1)
-    client_2.to(device)
-    optimizer_2 = optim.SGD(
-        client_2.parameters(), 
-        lr=config['para']['client_2']['lr'], 
-        weight_decay=float(config['para']['client_2']['weight_decay']), 
-        momentum=config['para']['client_2']['momentum']
-    )
+        net_2 = Net()
+        client_2 = FedAvgClient(net_2, user_id=1)
+        client_2.to(device)
+        optimizer_2 = optim.SGD(
+            client_2.parameters(), 
+            lr=config['para']['client_2']['lr'], 
+            weight_decay=float(config['para']['client_2']['weight_decay']), 
+            momentum=config['para']['client_2']['momentum']
+        )
 
-    clients = [client_1, client_2]
-    optimizers = [optimizer_1, optimizer_2]
+        clients = [client_1, client_2]
+        optimizers = [optimizer_1, optimizer_2]
 
-    generator = Generator(nz, nc, ngf)
-    generator.to(device)
-    optimizer_g = optim.SGD(
-        generator.parameters(), 
-        lr=config['para']['generator']['lr'], 
-        weight_decay=float(config['para']['generator']['weight_decay']), 
-        momentum=config['para']['generator']['momentum']
-    )
-    gan_attacker = GAN_Attack(
-        client_2,
-        target_label,
-        generator,
-        optimizer_g,
-        criterion,
-        nz=nz,
-        device=device,
-    )
+        generator = Generator(nz, nc, ngf)
+        generator.to(device)
+        optimizer_g = optim.SGD(
+            generator.parameters(), 
+            lr=config['para']['generator']['lr'], 
+            weight_decay=float(config['para']['generator']['weight_decay']), 
+            momentum=config['para']['generator']['momentum']
+        )
+        gan_attacker = GAN_Attack(
+            client_2,
+            target_label,
+            generator,
+            optimizer_g,
+            criterion,
+            nz=nz,
+            device=device,
+        )
 
-    global_model = Net()
-    global_model.to(device)
+        global_model = Net()
+        global_model.to(device)
 
-    if config['update_type'] == 'fedAVG':
-        server = FedAvgServer(clients, global_model)
+        if config['update_type'] == 'fedAVG':
+            server = FedAvgServer(clients, global_model)
 
-    fake_batch_size = batch_size
-    fake_label = config['para']['fake_label']
+        fake_batch_size = batch_size
+        fake_label = config['para']['fake_label']
 
-    for epoch in range(config['para']['epoch']):
+        privacy_engine = PrivacyEngine()
+
         for client_idx in range(client_num):
             client = clients[client_idx]
             trainloader = trainloaders[client_idx]
             optimizer = optimizers[client_idx]
-
-            running_loss = 0.0
-            for _, data in enumerate(trainloader, 0):
-                # get the inputs; data is a list of [inputs, labels]
-                inputs, labels = data
-                inputs = inputs.to(device)
-                labels = labels.to(device)
-
-                # TODO: Poisoning control to be added here.
-                if epoch >= 1 and client_idx == adversary_client_id:
-                    fake_image = gan_attacker.attack(fake_batch_size)
-                    inputs = torch.cat([inputs, fake_image])
-                    labels = torch.cat(
-                        [
-                            labels,
-                            torch.tensor([fake_label] * fake_batch_size, device=device),
-                        ]
-                    )
-
-                # zero the parameter gradients
-                optimizer.zero_grad()
-
-                # forward + backward + optimize
-                outputs = client(inputs)
-                loss = criterion(outputs, labels.to(torch.int64))
-                loss.backward()
-                optimizer.step()
-
-                running_loss += loss.item()
-
-            print(
-                f"epoch {epoch}: client-{client_idx+1}",
-                running_loss / dataset_nums[client_idx],
+            client, optimizer, trainloader = privacy_engine.make_private(
+                module=client,
+                optimizer=optimizer,
+                data_loader=trainloader,
+                noise_multiplier=1.1,
+                max_grad_norm=1.0,
             )
+        for epoch in range(config['para']['epoch']):
+            for client_idx in range(client_num):
+                client = clients[client_idx]
+                trainloader = trainloaders[client_idx]
+                optimizer = optimizers[client_idx]
 
-        server.update()
-        server.distribtue()
+                running_loss = 0.0
+                for _, data in enumerate(trainloader, 0):
+                    # get the inputs; data is a list of [inputs, labels]
+                    inputs, labels = data
+                    inputs = inputs.to(device)
+                    labels = labels.to(device)
 
-        gan_attacker.update_discriminator()
-        gan_attacker.update_generator(
-            config['para']['generator']['batch_size'], 
-            config['para']['generator']['epoch'], 
-            config['para']['generator']['log_interval']
-        )
+                    # TODO: Poisoning control to be added here.
+                    if epoch >= 1 and client_idx == adversary_client_id:
+                        fake_image = gan_attacker.attack(fake_batch_size)
+                        inputs = torch.cat([inputs, fake_image])
+                        labels = torch.cat(
+                            [
+                                labels,
+                                torch.tensor([fake_label] * fake_batch_size, device=device),
+                            ]
+                        )
 
-        in_preds = []
-        in_label = []
-        with torch.no_grad():
-            for data in global_trainloader:
-                inputs, labels = data
-                inputs = inputs.to(device)
-                outputs = server.server_model(inputs)
-                in_preds.append(outputs)
-                in_label.append(labels)
-            in_preds = torch.cat(in_preds)
-            in_label = torch.cat(in_label)
-        print(
-            f"epoch {epoch}: accuracy is ",
-            accuracy_score(
-                np.array(torch.argmax(in_preds, axis=1).cpu()), np.array(in_label)
-            ),
-        )
+                    # zero the parameter gradients
+                    optimizer.zero_grad()
 
-        reconstructed_image = gan_attacker.attack(1).cpu().numpy().reshape(28, 28)
-        print(
-            "reconstrunction error is ",
-            np.sqrt(
-                np.sum(
-                    (
-                        (X[np.where(y == target_label)[0][:10], :, :] - 0.5 / 0.5)
-                        - reconstructed_image
-                    )
-                    ** 2
+                    # forward + backward + optimize
+                    outputs = client(inputs)
+                    loss = criterion(outputs, labels.to(torch.int64))
+                    loss.backward()
+                    optimizer.step()
+
+                    running_loss += loss.item()
+
+                print(
+                    f"epoch {epoch}: client-{client_idx+1}",
+                    running_loss / dataset_nums[client_idx],
                 )
+
+            server.update()
+            server.distribtue()
+
+            gan_attacker.update_discriminator()
+            gan_attacker.update_generator(
+                config['para']['generator']['batch_size'], 
+                config['para']['generator']['epoch'], 
+                config['para']['generator']['log_interval']
             )
-            / (10 * (28 * 28)),
-        )
-        # print(reconstructed_image)
-        fig = plt.figure(frameon=False)
-        fig.set_size_inches(image_size, image_size)
-        ax = plt.Axes(fig, [0., 0., 1., 1.])
-        ax.set_axis_off()
-        fig.add_axes(ax)
-        plt.imshow(reconstructed_image * 0.5 + 0.5, vmin=-1, vmax=1, cmap='gray', )
-        plt.savefig(f"output/{epoch}.png")
+
+            in_preds = []
+            in_label = []
+            with torch.no_grad():
+                for data in global_trainloader:
+                    inputs, labels = data
+                    inputs = inputs.to(device)
+                    outputs = server.server_model(inputs)
+                    in_preds.append(outputs)
+                    in_label.append(labels)
+                in_preds = torch.cat(in_preds)
+                in_label = torch.cat(in_label)
+            print(
+                f"epoch {epoch}: accuracy is ",
+                accuracy_score(
+                    np.array(torch.argmax(in_preds, axis=1).cpu()), np.array(in_label)
+                ),
+            )
+
+            reconstructed_image = gan_attacker.attack(1).cpu().numpy().reshape(28, 28)
+            print(
+                "reconstrunction error is ",
+                np.sqrt(
+                    np.sum(
+                        (
+                            (X[np.where(y == target_label)[0][:10], :, :] - 0.5 / 0.5)
+                            - reconstructed_image
+                        )
+                        ** 2
+                    )
+                )
+                / (10 * (28 * 28)),
+            )
+            # print(reconstructed_image)
+            fig = plt.figure(frameon=False)
+            fig.set_size_inches(image_size, image_size)
+            ax = plt.Axes(fig, [0., 0., 1., 1.])
+            ax.set_axis_off()
+            fig.add_axes(ax)
+            plt.imshow(reconstructed_image * 0.5 + 0.5, vmin=-1, vmax=1, cmap='gray', )
+            plt.savefig(f"output/{epoch}.png")
+    except RuntimeError as e:
+        # print("myprint", e)
+        if "CUDA out of memory" in str(e):
+            print(e)
+            return 1
+    return 0
 
 
 if __name__ == "__main__":
     print("start at:" + time.asctime(time.localtime(time.time())))
-    main()
+    result_code = main()
+    while(result_code):
+        print("Sleep for a while")
+        time.sleep(120)
+        result_code = main()
     print("Finish at" + time.asctime(time.localtime(time.time())))
