@@ -143,7 +143,7 @@ def get_filename(args, config):
     else:
         poi = "np"
     if args.privacy:
-        return "_".join(["dp", f"n{args.max_grad_norm}", f"d{args.target_delta}", f"e{args.target_epsilon}", f"target{config['para']['target_label']}", poi]) 
+        return "_".join(["dp", f"n{args.max_grad_norm}", f"d{args.target_delta}", f"e{args.target_epsilon}", poi]) 
     else:
         return "_".join(["normal", f"gepoch{config['para']['generator']['epoch']}", poi]) 
 
@@ -157,8 +157,9 @@ def main(args):
         exit(1)
 
     config = loadConfig(config_path, True)
-    file_name = get_filename(args, config)
     print(config)
+    file_name = get_filename(args, config)
+    print(file_name)
     batch_size = config['para']['batch_size']
     image_size = config['imagesize']
     n_iter = config['para']['epoch']
