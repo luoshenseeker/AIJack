@@ -1,4 +1,5 @@
 from cgitb import reset
+from fileinput import filename
 import numpy as np
 import argparse
 import os
@@ -163,6 +164,8 @@ def main(args):
     batch_size = config['para']['batch_size']
     image_size = config['imagesize']
     n_iter = config['para']['epoch']
+
+    os.mkdir(f"output/{file_name}")
 
     X, y, trainloaders, global_trainloader, dataset_nums = prepare_dataloaders(config['dataset'])
 
@@ -337,11 +340,11 @@ def main(args):
         ax.set_axis_off()
         fig.add_axes(ax)
         plt.imshow(reconstructed_image * 0.5 + 0.5, vmin=-1, vmax=1, cmap='gray', )
-        plt.savefig(f"output/{epoch}.png")
+        plt.savefig(f"output/{file_name}/{epoch}.png")
     save_pkl(loss_hist, "loss", file_name)
     save_pkl(acc_hist, "acc", file_name)
-    os.system(f"zip output/pic/{file_name}.zip output/*.png")
-    os.system("rm output/*.png")
+    os.system(f"zip output/pic/{file_name}.zip output/{file_name}/*.png")
+    os.system(f"rm -r output/{file_name}")
 
 
 if __name__ == "__main__":
