@@ -137,23 +137,27 @@ def prepare_dataloaders(dataset_name):
 
     return X, y, [trainloader_1, trainloader_2], global_trainloader, [200, 200]
 
-def get_filename(args):
-    if args.privacy:
-        return "_".join(["dp", f"n{args.max_grad_norm}", f"m{args.noise_multiplier}"]) 
+def get_filename(args, config):
+    if args.poison:
+        poi = "pp"
     else:
-        return "normal"
+        poi = "np"
+    if args.privacy:
+        return "_".join(["dp", f"n{args.max_grad_norm}", f"d{args.target_delta}", f"e{args.target_epsilon}", f"target{config['para']['target_label']}", poi]) 
+    else:
+        return "_".join(["normal", f"gepoch{config['para']['generator']['epoch']}", poi]) 
 
 def main(args):
     device = torch.device("cuda:0") if torch.cuda.is_available() else "cpu"
     print(device)
 
-    file_name = get_filename(args)
 
     if not os.path.exists('output'):
         print("Path doesn't exist: output")
         exit(1)
 
     config = loadConfig(config_path, True)
+    file_name = get_filename(args, config)
     print(config)
     batch_size = config['para']['batch_size']
     image_size = config['imagesize']
@@ -219,19 +223,24 @@ def main(args):
     loss_hist = np.zeros((n_iter + 1, client_num))
     acc_hist = np.zeros((n_iter + 1, client_num))
 
-    privacy_engines = []
+    if args.privacy:
+        privacy_engines = []
 
-    for client_idx in range(client_num):
-        client = clients[client_idx]
-        trainloader = trainloaders[client_idx]
-        optimizer = optimizers[client_idx]
-        privacy_engine = PrivacyEngine(
-            client, max_grad_norm=args.max_grad_norm, 
-            batch_size=batch_size, noise_multiplier=args.noise_multiplier, 
-            sample_size=len(trainloader)
-        )
-        privacy_engine.attach(optimizer)
-        privacy_engines.append(privacy_engine)
+        for client_idx in range(client_num):
+            client = clients[client_idx]
+            trainloader = trainloaders[client_idx]
+            optimizer = optimizers[client_idx]
+            privacy_engine = PrivacyEngine(
+                client, max_grad_norm=args.max_grad_norm, 
+                batch_size=batch_size, 
+                target_delta=args.target_delta,
+                target_epsilon=args.target_epsilon,
+                epochs=n_iter,
+                # noise_multiplier=args.noise_multiplier, 
+                sample_size=len(trainloader)
+            )
+            privacy_engine.attach(optimizer)
+            privacy_engines.append(privacy_engine)
         
     for epoch in range(n_iter):
         for client_idx in range(client_num):
@@ -247,7 +256,7 @@ def main(args):
                 labels = labels.to(device)
 
                 # TODO: Poisoning control to be added here.
-                if epoch >= 1 and client_idx == adversary_client_id:
+                if args.poison and epoch >= 1 and client_idx == adversary_client_id:
                     fake_image = gan_attacker.attack(fake_batch_size)
                     inputs = torch.cat([inputs, fake_image])
                     labels = torch.cat(
@@ -336,9 +345,12 @@ def main(args):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument('-p', '--privacy', dest="privacy", action='store_true', help="Implement dp.")
+    parser.add_argument('-d', '--privacy', dest="privacy", action='store_true', help="Implement dp.")
+    parser.add_argument("-p", "--poison", dest="poison", action="store_true", help="Implement poison attack.")
     parser.add_argument("--max_grad_norm", type=float, default=1)
-    parser.add_argument("--noise_multiplier", type=float, default=1.1)
+    # parser.add_argument("--noise_multiplier", type=float, default=1.1)
+    parser.add_argument("--target_delta", type=float, default=1)
+    parser.add_argument("--target_epsilon", type=float, default=100)
     args = parser.parse_args()
     print("start at:" + time.asctime(time.localtime(time.time())))
     main(args)
