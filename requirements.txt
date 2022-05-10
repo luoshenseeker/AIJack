@@ -4,5 +4,5 @@ sklearn
 torch
 torchvision==0.7
 pybind11
-matplotlib
+matplotlib==3.4.3
 pyyaml
