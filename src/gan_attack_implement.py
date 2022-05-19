@@ -18,6 +18,8 @@ from aijack.utils import NumpyDataset, loadConfig
 
 from opacus import PrivacyEngine
 
+from similarity_calculation import similarity_cal
+
 # Number of channels in the training images. For color images this is 3
 nc = 1
 # Size of z latent vector (i.e. size of generator input)
@@ -164,8 +166,10 @@ def main(args):
     batch_size = config['para']['batch_size']
     image_size = config['imagesize']
     n_iter = config['para']['epoch']
+    simulatiry_calculate_interval = args.simulatiry_calculate_interval
 
-    os.mkdir(f"output/{file_name}")
+    if not os.path.exists(f"output/{file_name}"):
+        os.mkdir(f"output/{file_name}")
 
     X, y, trainloaders, global_trainloader, dataset_nums = prepare_dataloaders(config['dataset'])
 
@@ -226,6 +230,7 @@ def main(args):
 
     loss_hist = np.zeros((n_iter + 1, client_num))
     acc_hist = np.zeros((n_iter + 1, client_num))
+    similarity_score_hist = np.zeros((n_iter//simulatiry_calculate_interval, 2))
 
     if args.privacy:
         privacy_engines = []
@@ -333,6 +338,16 @@ def main(args):
             )
             / (10 * (28 * 28)),
         )
+        target_imgs = X[np.where(y == target_label)[0][:10], :, :]
+        # similarity calculation
+        if (epoch + 1) % simulatiry_calculate_interval == 0:
+            atk_img = reconstructed_image
+            similarity_score_mr = np.max([similarity_cal(atk_img, i, "mr") for i in target_imgs])
+            similarity_score_ssim = np.max([similarity_cal(atk_img, i, "ssim") for i in target_imgs])
+            print("-"*100)
+            print(f"similarity: mr:{similarity_score_mr}, ssim:{similarity_score_ssim}")
+            similarity_score_hist[(epoch + 1)//simulatiry_calculate_interval - 1, 0] = similarity_score_mr
+            similarity_score_hist[(epoch + 1)//simulatiry_calculate_interval - 1, 1] = similarity_score_ssim
         # print(reconstructed_image)
         fig = plt.figure(frameon=False)
         fig.set_size_inches(image_size, image_size)
@@ -343,8 +358,11 @@ def main(args):
         plt.savefig(f"output/{file_name}/{epoch}.png")
     save_pkl(loss_hist, "loss", file_name)
     save_pkl(acc_hist, "acc", file_name)
-    os.system(f"zip output/pic/{file_name}.zip output/{file_name}/*.png")
-    os.system(f"rm -r output/{file_name}")
+    save_pkl(similarity_score_hist, "similarity_score", file_name)
+    if not os.system(f"zip -q output/pic/{file_name}.zip output/{file_name}/*.png"):
+        os.system(f"rm -r output/{file_name}")
+    else:
+        print("Error in zip pictures")
 
 
 if __name__ == "__main__":
@@ -352,6 +370,7 @@ if __name__ == "__main__":
     parser.add_argument('-d', '--privacy', dest="privacy", action='store_true', help="Implement dp.")
     parser.add_argument("-p", "--poison", dest="poison", action="store_true", help="Implement poison attack.")
     parser.add_argument("--max_grad_norm", type=float, default=1)
+    parser.add_argument("--simulatiry_calculate_interval", type=int, default=20)
     # parser.add_argument("--noise_multiplier", type=float, default=1.1)
     parser.add_argument("--target_delta", type=float, default=1)
     parser.add_argument("--target_epsilon", type=float, default=100)
