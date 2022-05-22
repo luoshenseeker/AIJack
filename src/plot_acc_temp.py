@@ -27,7 +27,7 @@ def read_pkl_origin(filename, mode):
 
     return server_acc
 
-def plot_acc_with_order(exp_name: str, pkl_file: list, legends = [], mode="acc"):
+def plot_acc_with_order(exp_name: str, pkl_file: list, legends = [], mode="acc", line_type="smooth"):
     # '1.3', 2.6.c
     # exp_name = ['1.1', '1.2', '1.4', '1.5', '1.6', '1.7', '2.1', '2.2', '2.3', '2.4', '2.5', '2.7']
     # exp_name = ['4.0']
@@ -79,27 +79,30 @@ def plot_acc_with_order(exp_name: str, pkl_file: list, legends = [], mode="acc")
         # print(y[k])
         acc[k] = y[k][start:end]
         print(round(acc[k], 2).tolist())
+        if line_type == "smooth":
+            last_10 = np.array(round(acc[k][end-9:end+1], 3))
+            avg = round(sum(last_10) / len(last_10), 3)
+            fluctuation = round((max(last_10) - min(last_10)) / 2, 3)
 
-        last_10 = np.array(round(acc[k][end-9:end+1], 3))
-        avg = round(sum(last_10) / len(last_10), 3)
-        fluctuation = round((max(last_10) - min(last_10)) / 2, 3)
+            print(f"μ{pkl_file[k][-9:-4]}: {avg} ±{fluctuation}")
 
-        print(f"μ{pkl_file[k][-9:-4]}: {avg} ±{fluctuation}")
-
-        # 出图用
-        meanop[k]=acc[k].rolling(op).mean()  # 每10个算一个平均数，共200个平均数，前9个为0
-        stdop1=acc[k].rolling(op).std()  # 每10个算一个标准差，共200个方差，前9个为0
-        meanop_5[k] = [meanop[k][i] for i in range(stp-1,len(meanop[k]),stp)]  # 每10个值标一个点，共20个点
-        plt.plot(range(stp, end + 1, stp),
-                meanop_5[k],
-                # color=colors[k]
-                )
-        plt.fill_between(range(start + 1, end + 1),
-                        meanop[k] - 1.44 * stdop1,
-                        meanop[k] + 1.44 * stdop1,
-                        # color=colors[k],
-                        alpha=0.35)
-
+            # 出图用
+            meanop[k]=acc[k].rolling(op).mean()  # 每10个算一个平均数，共200个平均数，前9个为0
+            stdop1=acc[k].rolling(op).std()  # 每10个算一个标准差，共200个方差，前9个为0
+            meanop_5[k] = [meanop[k][i] for i in range(stp-1,len(meanop[k]),stp)]  # 每10个值标一个点，共20个点
+            plt.plot(range(stp, end + 1, stp),
+                    meanop_5[k],
+                    # color=colors[k]
+                    )
+            plt.fill_between(range(start + 1, end + 1),
+                            meanop[k] - 1.44 * stdop1,
+                            meanop[k] + 1.44 * stdop1,
+                            # color=colors[k],
+                            alpha=0.35)
+        else:
+            if end > len(acc[k]):
+                end = len(acc[k])
+            plt.plot(range(start+1, end+1), acc[k])
     # xxx = [0 for _ in range(len(pkl_file))]
     # for x in range(len(pkl_file)):
     #     xxx[x] = pkl_file[x][-9:-4]
@@ -136,20 +139,22 @@ if __name__ == "__main__":
     #     "MNIST_shard_ours_any_i200_N50_lr0.01_B50_d1.0_p0.1_m1_0_AVG_conv.pkl",
     #     ])
     file_list = [
-        "normal_gepoch5_np.pkl",
-        "dp_n1_d1.0_e100.0_np.pkl",
-        "dp_n1_d1.0_e10.0_np.pkl",
-        "dp_n1_d1.0_e1.0_np.pkl"
+        "ATT_normal_gepoch5_np.pkl",
+        # "dp_n1_d1.0_e200.0_pp.pkl",
+        # "dp_n1_d1.0_e100.0_np.pkl",
+        # "dp_n1_d1.0_e20.0_np.pkl",
+        # "dp_n1_d1.0_e10.0_np.pkl",
+        # "dp_n1_d1.0_e1.0_np.pkl"
     ]
-    legends = ["normal", "e=100", "e=10", "e=1"]
-    exp_name = "mnist_compare_np"
+    legends = ["normal"]
+    exp_name = "ATT_compare_pp"
     plot_acc_with_order(exp_name, file_list,
         legends,
-        mode="acc"
+        mode="acc",
     )
-    # plot_acc_with_order(exp_name, file_list,
-    #     legends,
-    #     mode="loss"
-    # )
+    plot_acc_with_order(exp_name, file_list,
+        legends,
+        mode="loss",
+    )
 
     # 0.5 touch 60: 
