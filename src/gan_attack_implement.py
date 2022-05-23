@@ -11,6 +11,7 @@ import torchvision
 import torchvision.transforms as transforms
 from matplotlib import pyplot as plt
 from sklearn.metrics import accuracy_score
+from torchsummary import summary
 
 from aijack.attack import GAN_Attack
 from aijack.collaborative import FedDSSGDClient, FedDSSGDServer
@@ -226,6 +227,12 @@ def main(args):
     if config['update_type'] == 'fedAVG':
         server = FedDSSGDServer(clients, global_model)
 
+    # summary
+    print("net", net_1)
+    print("Generator", generator)
+    if args.summary_only:
+        return
+
     fake_batch_size = batch_size
     fake_label = config['para']['fake_label']
 
@@ -370,6 +377,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('-d', '--privacy', dest="privacy", action='store_true', help="Implement dp.")
     parser.add_argument("-p", "--poison", dest="poison", action="store_true", help="Implement poison attack.")
+    parser.add_argument("-s", "--summary_only", dest="summary_only", action="store_true", help="Show summary only.")
     parser.add_argument("--max_grad_norm", type=float, default=1)
     parser.add_argument("--simulatiry_calculate_interval", type=int, default=20)
     # parser.add_argument("--noise_multiplier", type=float, default=1.1)
