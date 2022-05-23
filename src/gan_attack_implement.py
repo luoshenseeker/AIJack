@@ -272,8 +272,7 @@ def main(args):
                 inputs = inputs.to(device)
                 labels = labels.to(device)
 
-                # TODO: Poisoning control to be added here.
-                if args.poison and epoch >= 1 and client_idx == adversary_client_id:
+                if epoch >= 1 and client_idx == adversary_client_id:
                     fake_image = gan_attacker.attack(fake_batch_size)
                     inputs = torch.cat([inputs, fake_image])
                     labels = torch.cat(
