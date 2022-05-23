@@ -36,8 +36,8 @@ class FedDSSGDClient(BaseClient):
             gradients_vector_one_dimention = np.concatenate(gradients_vector_one_dimention)
             gradients_vector_one_dimention = abs(gradients_vector_one_dimention)
             gradients_vector_one_dimention.sort()
-            delete_capacity = round(gradients_vector_one_dimention.size * self.upload_p)
-            threashold = gradients_vector_one_dimention[delete_capacity]
+            delete_capacity = round(gradients_vector_one_dimention.size * (1 - self.upload_p))
+            threashold = gradients_vector_one_dimention[delete_capacity - 1]
             gradients_numpy_clip = [np.clip(i, -threashold, threashold) for i in gradients_numpy]
             handled_gradient = []
             deleted_num = 0
