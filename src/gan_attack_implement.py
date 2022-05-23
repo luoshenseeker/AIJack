@@ -13,7 +13,7 @@ from matplotlib import pyplot as plt
 from sklearn.metrics import accuracy_score
 
 from aijack.attack import GAN_Attack
-from aijack.collaborative import FedAvgClient, FedAvgServer
+from aijack.collaborative import FedDSSGDClient, FedDSSGDServer
 from aijack.utils import NumpyDataset, loadConfig
 
 from opacus import PrivacyEngine
@@ -146,9 +146,9 @@ def get_filename(args, config):
     else:
         poi = "np"
     if args.privacy:
-        return "_".join(["dp", f"n{args.max_grad_norm}", f"d{args.target_delta}", f"e{args.target_epsilon}", poi]) 
+        return "_".join(["dp", f"up{args.upload_p}", f"n{args.max_grad_norm}", f"d{args.target_delta}", f"e{args.target_epsilon}", poi]) 
     else:
-        return "_".join(["normal", f"gepoch{config['para']['generator']['epoch']}", poi]) 
+        return "_".join(["normal", f"up{args.upload_p}", f"gepoch{config['para']['generator']['epoch']}", poi]) 
 
 def main(args):
     device = torch.device("cuda:0") if torch.cuda.is_available() else "cpu"
@@ -163,6 +163,7 @@ def main(args):
     print(config)
     file_name = get_filename(args, config)
     print(file_name)
+    global batch_size
     batch_size = config['para']['batch_size']
     image_size = config['imagesize']
     n_iter = config['para']['epoch']
@@ -179,7 +180,7 @@ def main(args):
     target_label = config['para']['target_label']
 
     net_1 = Net()
-    client_1 = FedAvgClient(net_1, user_id=0)
+    client_1 = FedDSSGDClient(net_1, user_id=0, upload_p=args.upload_p, device=device)
     client_1.to(device)
     optimizer_1 = optim.SGD(
         client_1.parameters(), 
@@ -189,7 +190,7 @@ def main(args):
     )
 
     net_2 = Net()
-    client_2 = FedAvgClient(net_2, user_id=1)
+    client_2 = FedDSSGDClient(net_2, user_id=1, upload_p=args.upload_p, device=device)
     client_2.to(device)
     optimizer_2 = optim.SGD(
         client_2.parameters(), 
@@ -223,7 +224,7 @@ def main(args):
     global_model.to(device)
 
     if config['update_type'] == 'fedAVG':
-        server = FedAvgServer(clients, global_model)
+        server = FedDSSGDServer(clients, global_model)
 
     fake_batch_size = batch_size
     fake_label = config['para']['fake_label']
@@ -374,6 +375,7 @@ if __name__ == "__main__":
     # parser.add_argument("--noise_multiplier", type=float, default=1.1)
     parser.add_argument("--target_delta", type=float, default=1)
     parser.add_argument("--target_epsilon", type=float, default=100)
+    parser.add_argument("--upload_p", type=float, default=1)
     args = parser.parse_args()
     print("start at:" + time.asctime(time.localtime(time.time())))
     main(args)
