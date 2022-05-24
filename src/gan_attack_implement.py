@@ -298,10 +298,10 @@ def main(args):
 
                 running_loss += loss.item()
 
-            print(
-                f"epoch {epoch}: client-{client_idx+1}",
-                running_loss / dataset_nums[client_idx],
-            )
+            # print(
+            #     f"epoch {epoch}: client-{client_idx+1}",
+            #     running_loss / dataset_nums[client_idx],
+            # )
 
             loss_hist[epoch, client_idx] = running_loss / dataset_nums[client_idx]
 
@@ -327,12 +327,12 @@ def main(args):
                 in_label.append(labels)
             in_preds = torch.cat(in_preds)
             in_label = torch.cat(in_label)
+        tot_loss = np.average(loss_hist[epoch])
         acc =  accuracy_score(
                 np.array(torch.argmax(in_preds, axis=1).cpu()), np.array(in_label)
             )
         print(
-            f"epoch {epoch}: accuracy is ",
-            acc
+            f"epoch {epoch}: loss:{tot_loss}, accuracy:{acc}"
         )
         acc_hist[epoch, 0] = acc
         acc_hist[epoch, 1] = acc
