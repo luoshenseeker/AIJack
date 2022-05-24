@@ -142,14 +142,18 @@ def prepare_dataloaders(dataset_name):
     return X, y, [trainloader_1, trainloader_2], global_trainloader, [200, 200]
 
 def get_filename(args, config):
+    if args.no_attack:
+        no_attack = "noattack"
+    else:
+        no_attack = "attack"
     if args.poison:
         poi = "pp"
     else:
         poi = "np"
     if args.privacy:
-        return "_".join(["dp", f"up{args.upload_p}", f"n{args.max_grad_norm}", f"d{args.target_delta}", f"e{args.target_epsilon}", poi]) 
+        return "_".join(["dp", f"up{args.upload_p}", f"n{args.max_grad_norm}", f"d{args.target_delta}", f"e{args.target_epsilon}", poi, no_attack]) 
     else:
-        return "_".join(["normal", f"up{args.upload_p}", f"gepoch{config['para']['generator']['epoch']}", poi]) 
+        return "_".join(["normal", f"up{args.upload_p}", f"gepoch{config['para']['generator']['epoch']}", poi, no_attack]) 
 
 def main(args):
     device = torch.device("cuda:0") if torch.cuda.is_available() else "cpu"
@@ -170,7 +174,7 @@ def main(args):
     n_iter = config['para']['epoch']
     simulatiry_calculate_interval = args.simulatiry_calculate_interval
 
-    if not os.path.exists(f"output/{file_name}"):
+    if not args.no_attack and not os.path.exists(f"output/{file_name}"):
         os.mkdir(f"output/{file_name}")
 
     X, y, trainloaders, global_trainloader, dataset_nums = prepare_dataloaders(config['dataset'])
@@ -272,15 +276,16 @@ def main(args):
                 inputs = inputs.to(device)
                 labels = labels.to(device)
 
-                if epoch >= 1 and client_idx == adversary_client_id:
-                    fake_image = gan_attacker.attack(fake_batch_size)
-                    inputs = torch.cat([inputs, fake_image])
-                    labels = torch.cat(
-                        [
-                            labels,
-                            torch.tensor([fake_label] * fake_batch_size, device=device),
-                        ]
-                    )
+                if not args.no_attack:
+                    if epoch >= 1 and client_idx == adversary_client_id:
+                        fake_image = gan_attacker.attack(fake_batch_size)
+                        inputs = torch.cat([inputs, fake_image])
+                        labels = torch.cat(
+                            [
+                                labels,
+                                torch.tensor([fake_label] * fake_batch_size, device=device),
+                            ]
+                        )
 
                 # zero the parameter gradients
                 optimizer.zero_grad()
@@ -303,12 +308,13 @@ def main(args):
         server.update()
         server.distribtue()
 
-        gan_attacker.update_discriminator()
-        gan_attacker.update_generator(
-            config['para']['generator']['batch_size'], 
-            config['para']['generator']['epoch'], 
-            config['para']['generator']['log_interval']
-        )
+        if not args.no_attack:
+            gan_attacker.update_discriminator()
+            gan_attacker.update_generator(
+                config['para']['generator']['batch_size'], 
+                config['para']['generator']['epoch'], 
+                config['para']['generator']['log_interval']
+            )
 
         in_preds = []
         in_label = []
@@ -323,46 +329,46 @@ def main(args):
             in_label = torch.cat(in_label)
         acc =  accuracy_score(
                 np.array(torch.argmax(in_preds, axis=1).cpu()), np.array(in_label)
-            ),
+            )
         print(
             f"epoch {epoch}: accuracy is ",
             acc
         )
-        acc_hist[epoch, 0] = acc[0]
-        acc_hist[epoch, 1] = acc[0]
+        acc_hist[epoch, 0] = acc
+        acc_hist[epoch, 1] = acc
 
-        reconstructed_image = gan_attacker.attack(1).cpu().numpy().reshape(28, 28)
-        print(
-            "reconstrunction error is ",
-            np.sqrt(
-                np.sum(
-                    (
-                        (X[np.where(y == target_label)[0][:10], :, :] - 0.5 / 0.5)
-                        - reconstructed_image
+        if not args.no_attack:
+            reconstructed_image = gan_attacker.attack(1).cpu().numpy().reshape(28, 28)
+            print(
+                "reconstrunction error is ",
+                np.sqrt(
+                    np.sum(
+                        (
+                            (X[np.where(y == target_label)[0][:10], :, :] - 0.5 / 0.5)
+                            - reconstructed_image
+                        )
+                        ** 2
                     )
-                    ** 2
-                )
+                ) / (10 * (28 * 28))
             )
-            / (10 * (28 * 28)),
-        )
-        target_imgs = X[np.where(y == target_label)[0][:10], :, :]
-        # similarity calculation
-        if (epoch + 1) % simulatiry_calculate_interval == 0:
-            atk_img = reconstructed_image
-            similarity_score_mr = np.max([similarity_cal(atk_img, i, "mr") for i in target_imgs])
-            similarity_score_ssim = np.max([similarity_cal(atk_img, i, "ssim") for i in target_imgs])
-            print("-"*100)
-            print(f"similarity: mr:{similarity_score_mr}, ssim:{similarity_score_ssim}")
-            similarity_score_hist[(epoch + 1)//simulatiry_calculate_interval - 1, 0] = similarity_score_mr
-            similarity_score_hist[(epoch + 1)//simulatiry_calculate_interval - 1, 1] = similarity_score_ssim
-        # print(reconstructed_image)
-        fig = plt.figure(frameon=False)
-        fig.set_size_inches(image_size, image_size)
-        ax = plt.Axes(fig, [0., 0., 1., 1.])
-        ax.set_axis_off()
-        fig.add_axes(ax)
-        plt.imshow(reconstructed_image * 0.5 + 0.5, vmin=-1, vmax=1, cmap='gray', )
-        plt.savefig(f"output/{file_name}/{epoch}.png")
+            target_imgs = X[np.where(y == target_label)[0][:10], :, :]
+            # similarity calculation
+            if (epoch + 1) % simulatiry_calculate_interval == 0:
+                atk_img = reconstructed_image
+                similarity_score_mr = np.max([similarity_cal(atk_img, i, "mr") for i in target_imgs])
+                similarity_score_ssim = np.max([similarity_cal(atk_img, i, "ssim") for i in target_imgs])
+                print("-"*100)
+                print(f"similarity: mr:{similarity_score_mr}, ssim:{similarity_score_ssim}")
+                similarity_score_hist[(epoch + 1)//simulatiry_calculate_interval - 1, 0] = similarity_score_mr
+                similarity_score_hist[(epoch + 1)//simulatiry_calculate_interval - 1, 1] = similarity_score_ssim
+            # print(reconstructed_image)
+            fig = plt.figure(frameon=False)
+            fig.set_size_inches(image_size, image_size)
+            ax = plt.Axes(fig, [0., 0., 1., 1.])
+            ax.set_axis_off()
+            fig.add_axes(ax)
+            plt.imshow(reconstructed_image * 0.5 + 0.5, vmin=-1, vmax=1, cmap='gray', )
+            plt.savefig(f"output/{file_name}/{epoch}.png")
     save_pkl(loss_hist, "loss", file_name)
     save_pkl(acc_hist, "acc", file_name)
     save_pkl(similarity_score_hist, "similarity_score", file_name)
@@ -377,6 +383,7 @@ if __name__ == "__main__":
     parser.add_argument('-d', '--privacy', dest="privacy", action='store_true', help="Implement dp.")
     parser.add_argument("-p", "--poison", dest="poison", action="store_true", help="Implement poison attack.")
     parser.add_argument("-s", "--summary_only", dest="summary_only", action="store_true", help="Show summary only.")
+    parser.add_argument("--no_attack", dest="no_attack", action="store_true", help="No attack.")
     parser.add_argument("--max_grad_norm", type=float, default=1)
     parser.add_argument("--simulatiry_calculate_interval", type=int, default=20)
     # parser.add_argument("--noise_multiplier", type=float, default=1.1)
