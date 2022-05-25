@@ -151,9 +151,20 @@ def get_filename(args, config):
     else:
         poi = "np"
     if args.privacy:
-        return "_".join(["dp", f"up{args.upload_p}", f"n{args.max_grad_norm}", f"d{args.target_delta}", f"e{args.target_epsilon}", poi, no_attack]) 
+        return "_".join([f"target{args.target_label}", "dp", f"up{args.upload_p}", f"n{args.max_grad_norm}", f"d{args.target_delta}", f"e{args.target_epsilon}", poi, no_attack]) 
     else:
-        return "_".join(["normal", f"up{args.upload_p}", f"gepoch{config['para']['generator']['epoch']}", poi, no_attack]) 
+        return "_".join([f"target{args.target_label}", "normal", f"up{args.upload_p}", f"gepoch{config['para']['generator']['epoch']}", poi, no_attack]) 
+
+def save_origin_fig(X, y, target_label):
+    a = X[np.where(y == target_label)[0][:10], :, :][0] - 0.5 / 0.5
+    plt.clf()
+    fig = plt.figure(frameon=False)
+    fig.set_size_inches(4, 4)
+    ax = plt.Axes(fig, [0., 0., 1., 1.])
+    ax.set_axis_off()
+    fig.add_axes(ax)
+    plt.imshow(a * 0.5 + 0.5, vmin=-1, vmax=1, cmap='gray', )
+    plt.savefig(f"output/origin/{target_label}.png")
 
 def main(args):
     device = torch.device("cuda:0") if torch.cuda.is_available() else "cpu"
@@ -182,7 +193,7 @@ def main(args):
     criterion = nn.CrossEntropyLoss()
     client_num = 2
     adversary_client_id = 1
-    target_label = config['para']['target_label']
+    target_label = args.target_label
 
     net_1 = Net()
     client_1 = FedDSSGDClient(net_1, user_id=0, upload_p=args.upload_p, device=device)
@@ -242,7 +253,8 @@ def main(args):
 
     loss_hist = np.zeros((n_iter + 1, client_num))
     acc_hist = np.zeros((n_iter + 1, client_num))
-    similarity_score_hist = np.zeros((n_iter//simulatiry_calculate_interval, 2))
+    # similarity_score_hist = np.zeros((n_iter//simulatiry_calculate_interval, 2))
+    similarity_score_hist = np.zeros((n_iter + 1))
 
     if args.privacy:
         privacy_engines = []
@@ -339,29 +351,32 @@ def main(args):
 
         if not args.no_attack:
             reconstructed_image = gan_attacker.attack(1).cpu().numpy().reshape(28, 28)
-            print(
-                "reconstrunction error is ",
-                np.sqrt(
+            reconstructed_error =  np.sqrt(
                     np.sum(
                         (
-                            (X[np.where(y == target_label)[0][:10], :, :] - 0.5 / 0.5)
+                            ((X[np.where(y == target_label)[0][:10], :, :] / 255 - 0.5) / 0.5)
                             - reconstructed_image
                         )
                         ** 2
                     )
-                ) / (10 * (28 * 28))
+                )
+            print(
+                "reconstrunction error is ",
+                reconstructed_error
             )
-            target_imgs = X[np.where(y == target_label)[0][:10], :, :]
+            # target_imgs = X[np.where(y == target_label)[0][:10], :, :]
+            similarity_score_hist[epoch] = reconstructed_error
             # similarity calculation
-            if (epoch + 1) % simulatiry_calculate_interval == 0:
-                atk_img = reconstructed_image
-                similarity_score_mr = np.max([similarity_cal(atk_img, i, "mr") for i in target_imgs])
-                similarity_score_ssim = np.max([similarity_cal(atk_img, i, "ssim") for i in target_imgs])
-                print("-"*100)
-                print(f"similarity: mr:{similarity_score_mr}, ssim:{similarity_score_ssim}")
-                similarity_score_hist[(epoch + 1)//simulatiry_calculate_interval - 1, 0] = similarity_score_mr
-                similarity_score_hist[(epoch + 1)//simulatiry_calculate_interval - 1, 1] = similarity_score_ssim
+            # if (epoch + 1) % simulatiry_calculate_interval == 0:
+            #     atk_img = reconstructed_image
+            #     similarity_score_mr = np.max([similarity_cal(atk_img, i, "mr") for i in target_imgs])
+            #     similarity_score_ssim = np.max([similarity_cal(atk_img, i, "ssim") for i in target_imgs])
+            #     print("-"*100)
+            #     print(f"similarity: mr:{similarity_score_mr}, ssim:{similarity_score_ssim}")
+            #     similarity_score_hist[(epoch + 1)//simulatiry_calculate_interval - 1, 0] = similarity_score_mr
+            #     similarity_score_hist[(epoch + 1)//simulatiry_calculate_interval - 1, 1] = similarity_score_ssim
             # print(reconstructed_image)
+            plt.cla()
             fig = plt.figure(frameon=False)
             fig.set_size_inches(image_size, image_size)
             ax = plt.Axes(fig, [0., 0., 1., 1.])
@@ -372,10 +387,11 @@ def main(args):
     save_pkl(loss_hist, "loss", file_name)
     save_pkl(acc_hist, "acc", file_name)
     save_pkl(similarity_score_hist, "similarity_score", file_name)
-    if not os.system(f"zip -q output/pic/{file_name}.zip output/{file_name}/*.png"):
-        os.system(f"rm -r output/{file_name}")
-    else:
-        print("Error in zip pictures")
+    if not args.no_attack:
+        if not os.system(f"zip -q output/pic/{file_name}.zip output/{file_name}/*.png"):
+            os.system(f"rm -r output/{file_name}")
+        else:
+            print("Error in zip pictures")
 
 
 if __name__ == "__main__":
@@ -389,6 +405,7 @@ if __name__ == "__main__":
     # parser.add_argument("--noise_multiplier", type=float, default=1.1)
     parser.add_argument("--target_delta", type=float, default=1)
     parser.add_argument("--target_epsilon", type=float, default=100)
+    parser.add_argument("--target_label", type=int, default=3)
     parser.add_argument("--upload_p", type=float, default=1)
     args = parser.parse_args()
     print("start at:" + time.asctime(time.localtime(time.time())))
