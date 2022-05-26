@@ -1,9 +1,24 @@
 import pickle
 import numpy as np
 from matplotlib import pyplot as plt
+import matplotlib
 import pandas as pd
 from gan_attack_implement import get_filename
-def read_pkl_origin(filename, mode):
+
+# songTi = matplotlib.font_manager.FontProperties(fname='/home/shengy/luoshenseeker/AIJack/simsun.ttc')
+# plt.xticks(fontproperties=songTi,fontsize=12)
+# plt.yticks(fontproperties=songTi,fontsize=12)
+# plt.xlabel('x',fontproperties=songTi,fontsize=14)
+# plt.ylabel('y',fontproperties=songTi,fontsize=14)
+# plt.legend(prop=songTi,fontsize=12)
+
+matplotlib.rcParams['font.family'] = 'sans-serif'  
+matplotlib.rcParams['font.sans-serif'] = 'NSimSun,Times New Roman'# 中文设置成宋体，除此之外的字体设置成New Roman  
+# matplotlib.rcParams['text.usetex'] = True
+
+plot_format = "png"
+
+def read_pkl_origin(filename, mode, client_num=2):
     np.set_printoptions(threshold=np.inf)   # 解决显示不完全问题
 
     # filename = "/home/shengy/luoshenseeker/Labs-Federated-Learning/data/NIID-Bench-origin/saved_exp_info/acc/" + filename
@@ -20,28 +35,16 @@ def read_pkl_origin(filename, mode):
     server_acc = []
     # server_loss = np.dot(weights, loss_hist[i + 1])
     for i in range(len(acc_hist)):
-        n_samples = np.array([200 for _ in range(2)])
+        n_samples = np.array([200 for _ in range(client_num)])
         weights = n_samples / np.sum(n_samples)   # sample size为聚合权重
         if np.dot(weights, acc_hist[i]) != 0.0:
             server_acc.append(np.dot(weights, acc_hist[i]))
 
     return server_acc
 
-def plot_acc_with_order(exp_name: str, pkl_file: list, legends = [], mode="acc", line_type="smooth"):
-    # '1.3', 2.6.c
-    # exp_name = ['1.1', '1.2', '1.4', '1.5', '1.6', '1.7', '2.1', '2.2', '2.3', '2.4', '2.5', '2.7']
-    # exp_name = ['4.0']
-    # print(exp_name_)
-    # pkl_file = not_final_pkl_dict[exp_name_]
-    # pkl_file = [
-    #     "MNIST_iid_FedAvg_any_i200_N50_lr0.01_B50_d1.0_p0.1_m1_0_AVG_conv.pkl",
-    #     "MNIST_iid_random_any_i200_N50_lr0.01_B50_d1.0_p0.1_m1_0_AVG_conv.pkl",
-    #     "MNIST_iid_clustered_1_any_i200_N50_lr0.01_B50_d1.0_p0.1_m1_0_AVG_conv.pkl",
-    #     "MNIST_iid_ours_any_i200_N50_lr0.01_B50_d1.0_p0.1_m1_0_AVG_conv.pkl",
-    #     # "MNIST_iid_random_any_i200_N50_lr0.01_B50_d1.0_p0.1_m1_0_SCAFFOLD_conv.pkl",
-    #     # "MNIST_iid_random_any_i200_N50_lr0.01_B50_d1.0_p0.1_m1_0_SCAFFOLD_ncon.pkl"
-    # ]
-
+def plot_acc_with_order(exp_name: str, pkl_file: list, legends = [], mode="acc", line_type="smooth", save=True, plot_range=(0, 200), client_num=2):
+    plt.xticks(fontsize=10.5)
+    plt.yticks(fontsize=10.5)
     # exp_name = get_exp_name(pkl_file[0])
 
     if pkl_file[0][:5] == "MNIST" or pkl_file[0][:6] == "FMNIST":
@@ -59,6 +62,8 @@ def plot_acc_with_order(exp_name: str, pkl_file: list, legends = [], mode="acc",
         end = 200
         op = 5
         stp = 5
+    start = plot_range[0]
+    end = plot_range[1]
 
     y = {}
     meanop = {}
@@ -70,13 +75,7 @@ def plot_acc_with_order(exp_name: str, pkl_file: list, legends = [], mode="acc",
 
     n = len(pkl_file)
     for k in range(n):
-
-        # if pkl_file[k][:1] == 'm' or pkl_file[k][:1] == 'f' or pkl_file[k][:1] == 'c':
-        y[k] = read_pkl_origin(pkl_file[k], mode=mode)
-        # else:
-        #     y[k] = read_pkl(pkl_file[k])
-        # y[k] = pkl_file[k]
-        # print(y[k])
+        y[k] = read_pkl_origin(pkl_file[k], mode=mode, client_num=client_num)
         acc[k] = y[k][start:end]
         print(round(acc[k], 2).tolist())
         if line_type == "smooth":
@@ -103,10 +102,6 @@ def plot_acc_with_order(exp_name: str, pkl_file: list, legends = [], mode="acc",
             if end > len(acc[k]):
                 end = len(acc[k])
             plt.plot(range(start+1, end+1), acc[k])
-    # xxx = [0 for _ in range(len(pkl_file))]
-    # for x in range(len(pkl_file)):
-    #     xxx[x] = pkl_file[x][-9:-4]
-    # plt.legend(labels=xxx)
 
     if not legends:
         if n == 4:
@@ -116,45 +111,162 @@ def plot_acc_with_order(exp_name: str, pkl_file: list, legends = [], mode="acc",
             plt.legend(loc='lower right',labels=["random_sampling", "importance_sampling", "ours"])
             # plt.legend(loc='lower right',labels=["random_sampling", "importance_sampling", "ours"])
     else:
-        plt.legend(labels=legends)
+        plt.legend(labels=legends, fontsize=10.5)
 
     # filename = exp_name+'_acc'
     plt.xlim([start, end])  #设置x轴显示的范围
     plt.grid()
-    plt.xlabel('Communication Rounds', {'size':15})
-    plt.ylabel('Test Accuracy', {'size':15})
-    plt.title(exp_name, {'size':18})
+    plt.xlabel('通信轮数', {'size':10.5})
+    if mode == "acc":
+        plt.title(exp_name+'准确率', {'size':10.5})
+        # plt.ylabel('全局模型', {'size':10.5})
+    elif mode == "loss":
+        plt.title(exp_name+'损失', {'size':10.5})
+        # plt.ylabel('全局模型', {'size':10.5})
+    # if mode == "acc":
+    #     plt.ylabel('全局模型准确率', {'size':10.5})
+    # elif mode == "loss":
+    #     plt.ylabel('全局模型损失', {'size':10.5})
+    # plt.title(exp_name, {'size':10.5})
     # # plt.title('MNIST Non-iid p=1', {'size':18})  # title的大小设置为18
-    plt.savefig(f'/home/shengy/luoshenseeker/AIJack/output/plot_result/{exp_name}_{mode}.png', format='png', dpi=600, bbox_inches="tight")
+    if save:
+        plt.savefig(f'/home/shengy/luoshenseeker/AIJack/output/plot_result/{exp_name}_{mode}.{plot_format}', format=plot_format, dpi=600, bbox_inches="tight")
     # plt.show()
 
-    print("Saved")
+        print("Saved")
     # plt.clf()
 
 if __name__ == "__main__":
-    # plot_acc_with_order("Mnist shard conv", [
-    #     "MNIST_shard_FedAvg_any_i200_N50_lr0.01_B50_d1.0_p0.1_m1_0_AVG_conv.pkl",
-    #     "MNIST_shard_random_any_i200_N50_lr0.01_B50_d1.0_p0.1_m1_0_AVG_conv.pkl", 
-    #     "MNIST_shard_clustered_1_any_i200_N50_lr0.01_B50_d1.0_p0.1_m1_0_AVG_conv.pkl",
-    #     "MNIST_shard_ours_any_i200_N50_lr0.01_B50_d1.0_p0.1_m1_0_AVG_conv.pkl",
-    #     ])
+    matplotlib.rcParams['font.family'] = 'sans-serif'  
+    matplotlib.rcParams['font.sans-serif'] = 'NSimSun,Times New Roman'# 中文设置成宋体，除此之外的字体设置成New Roman  
+    plt.figure().set_size_inches(7,3.5)
     file_list = [
-        "ATT_normal_gepoch5_np.pkl",
-        # "dp_n1_d1.0_e200.0_pp.pkl",
-        # "dp_n1_d1.0_e100.0_np.pkl",
-        # "dp_n1_d1.0_e20.0_np.pkl",
-        # "dp_n1_d1.0_e10.0_np.pkl",
-        # "dp_n1_d1.0_e1.0_np.pkl"
+        "normal_up0.05_gepoch5_np_noattack.pkl",
+        "normal_up0.1_gepoch5_np_noattack.pkl",
+        "normal_up0.5_gepoch5_np_noattack.pkl",
+        "normal_up1.0_gepoch5_np_noattack.pkl",
     ]
-    legends = ["normal"]
-    exp_name = "ATT_compare_pp"
+    legends = ["$\\theta_u$=0.05", "$\\theta_u$=0.1", "$\\theta_u$=0.5", "$\\theta_u$=1"]
+    exp_name = "MNIST 无GAN攻击"
+    plt.subplot(121)
     plot_acc_with_order(exp_name, file_list,
         legends,
         mode="acc",
+        save=False
     )
+    plt.subplot(122)
     plot_acc_with_order(exp_name, file_list,
         legends,
         mode="loss",
+        save=False
     )
+    plt.savefig(f'/home/shengy/luoshenseeker/AIJack/output/plot_result/{exp_name}.{plot_format}', format=plot_format, dpi=600, bbox_inches="tight")
+    plt.clf()
 
-    # 0.5 touch 60: 
+    matplotlib.rcParams['font.family'] = 'sans-serif'  
+    matplotlib.rcParams['font.sans-serif'] = 'NSimSun,Times New Roman'# 中文设置成宋体，除此之外的字体设置成New Roman  
+    plt.figure().set_size_inches(7,3.5)
+    file_list = [
+        "normal_up0.05_gepoch5_np_attack.pkl",
+        "normal_up0.1_gepoch5_np_attack.pkl",
+        "normal_up0.5_gepoch5_np_attack.pkl",
+        "normal_up1.0_gepoch5_np_attack.pkl",
+    ]
+    legends = ["$\\theta_u$=0.05", "$\\theta_u$=0.1", "$\\theta_u$=0.5", "$\\theta_u$=1"]
+    exp_name = "MNIST GAN攻击"
+    plt.rc('axes', unicode_minus=False)
+    plt.subplot(121)
+    plot_acc_with_order(exp_name, file_list,
+        legends,
+        mode="acc",
+        save=False
+    )
+    plt.subplot(122)
+    plot_acc_with_order(exp_name, file_list,
+        legends,
+        mode="loss",
+        save=False
+    )
+    plt.savefig(f'/home/shengy/luoshenseeker/AIJack/output/plot_result/{exp_name}.{plot_format}', format=plot_format, dpi=600, bbox_inches="tight")
+    plt.clf()
+
+    plt.figure().set_size_inches(7,3.5)
+    file_list = [
+        "dp_up1.0_n1_d1.0_e200.0_np_attack.pkl",
+        "dp_up1.0_n1_d1.0_e100.0_np_attack.pkl",
+        "dp_up1.0_n1_d1.0_e20.0_np_attack.pkl",
+        "dp_up1.0_n1_d1.0_e10.0_np_attack.pkl",
+    ]
+    legends = ["$\\epsilon$=200", "$\\epsilon$=100", "$\\epsilon$=20", "$\\epsilon$=10"]
+    exp_name = "MNIST 差分隐私下GAN攻击"
+    plt.rc('axes', unicode_minus=False)
+    plt.subplot(121)
+    plot_acc_with_order(exp_name, file_list,
+        legends,
+        mode="acc",
+        save=False
+    )
+    plt.subplot(122)
+    plot_acc_with_order(exp_name, file_list,
+        legends,
+        mode="loss",
+        save=False
+    )
+    plt.savefig(f'/home/shengy/luoshenseeker/AIJack/output/plot_result/{exp_name}.{plot_format}', format=plot_format, dpi=600, bbox_inches="tight")
+    plt.clf()
+
+    plt.figure().set_size_inches(7,3.5)
+    file_list = [
+        # "target3_i400_dp_up1.0_n1_d1.0_e200.0_np_noattack.pkl",
+        "target3_i800_dp_up1.0_n1_d1.0_e100.0_np_noattack.pkl",
+        # "dp_up1.0_n1_d1.0_e100.0_np_noattack.pkl",
+        # "dp_up1.0_n1_d1.0_e20.0_np_noattack.pkl",
+        # "dp_up1.0_n1_d1.0_e10.0_np_noattack.pkl",
+    ]
+    legends = ["$\\epsilon$=200", "$\\epsilon$=100", "$\\epsilon$=20", "$\\epsilon$=10"]
+    exp_name = "MNIST 差分隐私下无攻击"
+    plt.rc('axes', unicode_minus=False)
+    plt.subplot(121)
+    plot_acc_with_order(exp_name, file_list,
+        legends,
+        mode="acc",
+        save=False,
+        plot_range=(0, 800)
+    )
+    plt.subplot(122)
+    plot_acc_with_order(exp_name, file_list,
+        legends,
+        mode="loss",
+        save=False,
+        plot_range=(0, 800)
+    )
+    plt.savefig(f'/home/shengy/luoshenseeker/AIJack/output/plot_result/{exp_name}.{plot_format}', format=plot_format, dpi=600, bbox_inches="tight")
+    plt.clf()
+
+    plt.figure().set_size_inches(7,3.5)
+    file_list = [
+        # "target3_normal_up1.0_gepoch5_np_attack.pkl",
+        "multi3_target3_i200_normal_up1_gepoch5_np_attack.pkl",
+        # "dp_up1.0_n1_d1.0_e100.0_np_noattack.pkl",
+        # "dp_up1.0_n1_d1.0_e20.0_np_noattack.pkl",
+        # "dp_up1.0_n1_d1.0_e10.0_np_noattack.pkl",
+    ]
+    # legends = ["user=3"]
+    exp_name = "MNIST 多用户GAN攻击"
+    plt.rc('axes', unicode_minus=False)
+    plt.subplot(121)
+    plot_acc_with_order(exp_name, file_list,
+        legends,
+        mode="acc",
+        save=False,
+        client_num=3
+    )
+    plt.subplot(122)
+    plot_acc_with_order(exp_name, file_list,
+        legends,
+        mode="loss",
+        save=False,
+        client_num=3
+    )
+    plt.savefig(f'/home/shengy/luoshenseeker/AIJack/output/plot_result/{exp_name}.{plot_format}', format=plot_format, dpi=600, bbox_inches="tight")
+    plt.clf()
