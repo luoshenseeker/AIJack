@@ -203,6 +203,10 @@ def main(args):
     n_iter = args.n_iter
     simulatiry_calculate_interval = args.simulatiry_calculate_interval
 
+    if args.ignore_warning:
+        import warnings
+        warnings.filterwarnings("ignore", category=UserWarning)
+
     if not args.no_attack and not os.path.exists(f"output/{file_name}"):
         os.mkdir(f"output/{file_name}")
 
@@ -415,6 +419,7 @@ if __name__ == "__main__":
     parser.add_argument("-p", "--poison", dest="poison", action="store_true", help="Implement poison attack.")
     parser.add_argument("-s", "--summary_only", dest="summary_only", action="store_true", help="Show summary only.")
     parser.add_argument("--no_attack", dest="no_attack", action="store_true", help="No attack.")
+    parser.add_argument("--ignore_warning", dest="ignore_warning", action="store_true", help="Ignore warning.")
     parser.add_argument("--max_grad_norm", type=float, default=1)
     parser.add_argument("--simulatiry_calculate_interval", type=int, default=20)
     # parser.add_argument("--noise_multiplier", type=float, default=1.1)
