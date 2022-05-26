@@ -151,9 +151,9 @@ def get_filename(args, config):
     else:
         poi = "np"
     if args.privacy:
-        return "_".join([f"target{args.target_label}", "dp", f"up{args.upload_p}", f"n{args.max_grad_norm}", f"d{args.target_delta}", f"e{args.target_epsilon}", poi, no_attack]) 
+        return "_".join([f"target{args.target_label}", f"i{args.n_iter}", "dp", f"up{args.upload_p}", f"n{args.max_grad_norm}", f"d{args.target_delta}", f"e{args.target_epsilon}", poi, no_attack]) 
     else:
-        return "_".join([f"target{args.target_label}", "normal", f"up{args.upload_p}", f"gepoch{config['para']['generator']['epoch']}", poi, no_attack]) 
+        return "_".join([f"target{args.target_label}", f"i{args.n_iter}", "normal", f"up{args.upload_p}", f"gepoch{config['para']['generator']['epoch']}", poi, no_attack]) 
 
 def save_origin_fig(X, y, target_label):
     a = X[np.where(y == target_label)[0][:10], :, :][0] - 0.5 / 0.5
@@ -165,6 +165,24 @@ def save_origin_fig(X, y, target_label):
     fig.add_axes(ax)
     plt.imshow(a * 0.5 + 0.5, vmin=-1, vmax=1, cmap='gray', )
     plt.savefig(f"output/origin/{target_label}.png")
+
+def reconstruction_error_cal(X, y, target_label, atk_img, method):
+    if method == "origin":
+        return np.sqrt(
+                np.sum(
+                    (
+                        ((X[np.where(y == target_label)[0][:10], :, :] / 255 - 0.5) / 0.5)
+                        - atk_img
+                    )
+                    ** 2
+                )
+            )
+    elif method == "my":
+        return np.min(abs(np.sum(((X[np.where(y == target_label)[0][:], :, :] / 255 - 0.5) / 0.5) - atk_img, axis=(1,2))))
+
+def ambiguity_cal(atk_img):
+    grey_avg = np.average(atk_img)
+    return np.average((atk_img - grey_avg) ** 2)
 
 def main(args):
     device = torch.device("cuda:0") if torch.cuda.is_available() else "cpu"
@@ -182,7 +200,7 @@ def main(args):
     global batch_size
     batch_size = config['para']['batch_size']
     image_size = config['imagesize']
-    n_iter = config['para']['epoch']
+    n_iter = args.n_iter
     simulatiry_calculate_interval = args.simulatiry_calculate_interval
 
     if not args.no_attack and not os.path.exists(f"output/{file_name}"):
@@ -255,6 +273,7 @@ def main(args):
     acc_hist = np.zeros((n_iter + 1, client_num))
     # similarity_score_hist = np.zeros((n_iter//simulatiry_calculate_interval, 2))
     similarity_score_hist = np.zeros((n_iter + 1))
+    ambiguity_hist = np.zeros((n_iter + 1))
 
     if args.privacy:
         privacy_engines = []
@@ -351,18 +370,13 @@ def main(args):
 
         if not args.no_attack:
             reconstructed_image = gan_attacker.attack(1).cpu().numpy().reshape(28, 28)
-            reconstructed_error =  np.sqrt(
-                    np.sum(
-                        (
-                            ((X[np.where(y == target_label)[0][:10], :, :] / 255 - 0.5) / 0.5)
-                            - reconstructed_image
-                        )
-                        ** 2
-                    )
-                )
+            ambiguity_hist[epoch] = ambiguity_cal(reconstructed_image)
+            reconstructed_error =  reconstruction_error_cal(X, y, target_label, reconstructed_image, "my")
             print(
                 "reconstrunction error is ",
-                reconstructed_error
+                reconstructed_error,
+                "ambiguity is ",
+                ambiguity_hist[epoch]
             )
             # target_imgs = X[np.where(y == target_label)[0][:10], :, :]
             similarity_score_hist[epoch] = reconstructed_error
@@ -387,6 +401,7 @@ def main(args):
     save_pkl(loss_hist, "loss", file_name)
     save_pkl(acc_hist, "acc", file_name)
     save_pkl(similarity_score_hist, "similarity_score", file_name)
+    save_pkl(ambiguity_hist, "ambiguity", file_name)
     if not args.no_attack:
         if not os.system(f"zip -q output/pic/{file_name}.zip output/{file_name}/*.png"):
             os.system(f"rm -r output/{file_name}")
@@ -406,8 +421,10 @@ if __name__ == "__main__":
     parser.add_argument("--target_delta", type=float, default=1)
     parser.add_argument("--target_epsilon", type=float, default=100)
     parser.add_argument("--target_label", type=int, default=3)
+    parser.add_argument("--n_iter", type=int, default=200)
     parser.add_argument("--upload_p", type=float, default=1)
     args = parser.parse_args()
-    print("start at:" + time.asctime(time.localtime(time.time())))
+    time_start = time.time()
     main(args)
+    print("start at:" + time.asctime(time.localtime(time_start)))
     print("Finish at" + time.asctime(time.localtime(time.time())))
