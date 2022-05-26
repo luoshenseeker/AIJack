@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 from cgitb import reset
 from fileinput import filename
 import numpy as np
@@ -140,6 +141,164 @@ def prepare_dataloaders(dataset_name):
     )
 
     return X, y, [trainloader_1, trainloader_2], global_trainloader, [200, 200]
+
+def prepare_dataloaders_multi(dataset_name, client_number):
+    if dataset_name == "MNIST":
+        at_t_dataset_train = torchvision.datasets.MNIST(
+            root="./data/", train=True, download=True
+        )
+        at_t_dataset_test = torchvision.datasets.MNIST(
+            root="./data/", train=False, download=True
+        )
+
+    X = at_t_dataset_train.data.numpy()
+    y = at_t_dataset_train.targets.numpy()
+
+    # ToTensor：画像のグレースケール化（RGBの0~255を0~1の範囲に正規化）、Normalize：Z値化（RGBの平均と標準偏差を0.5で決め打ちして正規化）
+    transform = transforms.Compose(
+        [transforms.ToTensor(), transforms.Normalize((0.5,), (0.5,))]
+    )
+
+    if client_number == 3:
+        # idx_1 = random.sample(range(400), 200)
+        # idx_2 = list(set(range(400)) - set(idx_1))
+        idx_1 = np.where(y < 4)[0]
+        idx_2 = np.union1d(np.where(y==4)[0], np.where(y==5)[0])
+        idx_2 = np.union1d(idx_2, np.where(y==6)[0])
+        idx_3 = np.where(y >= 7)[0]
+
+        global_trainset = NumpyDataset(
+            at_t_dataset_test.data.numpy(),
+            at_t_dataset_test.targets.numpy(),
+            transform=transform,
+        )
+        global_trainloader = torch.utils.data.DataLoader(
+            global_trainset, batch_size=batch_size, shuffle=True, num_workers=2
+        )
+        trainset_1 = NumpyDataset(X[idx_1], y[idx_1], transform=transform)
+        trainloader_1 = torch.utils.data.DataLoader(
+            trainset_1, batch_size=batch_size, shuffle=True, num_workers=2
+        )
+        trainset_2 = NumpyDataset(X[idx_2], y[idx_2], transform=transform)
+        trainloader_2 = torch.utils.data.DataLoader(
+            trainset_2, batch_size=batch_size, shuffle=True, num_workers=2
+        )
+        trainset_3 = NumpyDataset(X[idx_3], y[idx_3], transform=transform)
+        trainloader_3 = torch.utils.data.DataLoader(
+            trainset_3, batch_size=batch_size, shuffle=True, num_workers=2
+        )
+
+        return X, y, [trainloader_1, trainloader_2, trainloader_3], global_trainloader, [200, 200, 200]
+
+    if client_number == 5:
+        # idx_1 = random.sample(range(400), 200)
+        # idx_2 = list(set(range(400)) - set(idx_1))
+        idx_2 = np.where(y < 2)[0]
+        idx_1 = np.union1d(np.where(y==2)[0], np.where(y==3)[0])
+        idx_3 = np.union1d(np.where(y==4)[0], np.where(y==5)[0])
+        idx_4 = np.union1d(np.where(y==6)[0], np.where(y==7)[0])
+        idx_5 = np.where(8 <= y)[0]
+
+        global_trainset = NumpyDataset(
+            at_t_dataset_test.data.numpy(),
+            at_t_dataset_test.targets.numpy(),
+            transform=transform,
+        )
+        global_trainloader = torch.utils.data.DataLoader(
+            global_trainset, batch_size=batch_size, shuffle=True, num_workers=2
+        )
+        trainset_1 = NumpyDataset(X[idx_1], y[idx_1], transform=transform)
+        trainloader_1 = torch.utils.data.DataLoader(
+            trainset_1, batch_size=batch_size, shuffle=True, num_workers=2
+        )
+        trainset_2 = NumpyDataset(X[idx_2], y[idx_2], transform=transform)
+        trainloader_2 = torch.utils.data.DataLoader(
+            trainset_2, batch_size=batch_size, shuffle=True, num_workers=2
+        )
+        trainset_3 = NumpyDataset(X[idx_3], y[idx_3], transform=transform)
+        trainloader_3 = torch.utils.data.DataLoader(
+            trainset_3, batch_size=batch_size, shuffle=True, num_workers=2
+        )
+        trainset_4 = NumpyDataset(X[idx_4], y[idx_4], transform=transform)
+        trainloader_4 = torch.utils.data.DataLoader(
+            trainset_4, batch_size=batch_size, shuffle=True, num_workers=2
+        )
+        trainset_5 = NumpyDataset(X[idx_5], y[idx_5], transform=transform)
+        trainloader_5 = torch.utils.data.DataLoader(
+            trainset_5, batch_size=batch_size, shuffle=True, num_workers=2
+        )
+
+        trainloaders = [trainloader_1, trainloader_2, trainloader_3, trainloader_4, trainloader_5]
+
+        return X, y, trainloaders, global_trainloader, [200 for i in range(5)]
+
+    if client_number == 10:
+        # idx_1 = random.sample(range(400), 200)
+        # idx_2 = list(set(range(400)) - set(idx_1))
+        idx_1 = np.where(y == 0)[0]
+        idx_2 = np.where(y == 1)[0]
+        idx_3 = np.where(y == 2)[0]
+        idx_4 = np.where(y == 3)[0]
+        idx_5 = np.where(y == 4)[0]
+        idx_6 = np.where(y == 5)[0]
+        idx_7 = np.where(y == 6)[0]
+        idx_8 = np.where(y == 7)[0]
+        idx_9 = np.where(y == 8)[0]
+        idx_10 = np.where(y == 9)[0]
+
+        global_trainset = NumpyDataset(
+            at_t_dataset_test.data.numpy(),
+            at_t_dataset_test.targets.numpy(),
+            transform=transform,
+        )
+        global_trainloader = torch.utils.data.DataLoader(
+            global_trainset, batch_size=batch_size, shuffle=True, num_workers=2
+        )
+        trainset_1 = NumpyDataset(X[idx_1], y[idx_1], transform=transform)
+        trainloader_1 = torch.utils.data.DataLoader(
+            trainset_1, batch_size=batch_size, shuffle=True, num_workers=2
+        )
+        trainset_2 = NumpyDataset(X[idx_2], y[idx_2], transform=transform)
+        trainloader_2 = torch.utils.data.DataLoader(
+            trainset_2, batch_size=batch_size, shuffle=True, num_workers=2
+        )
+        trainset_3 = NumpyDataset(X[idx_3], y[idx_3], transform=transform)
+        trainloader_3 = torch.utils.data.DataLoader(
+            trainset_3, batch_size=batch_size, shuffle=True, num_workers=2
+        )
+        trainset_4 = NumpyDataset(X[idx_4], y[idx_4], transform=transform)
+        trainloader_4 = torch.utils.data.DataLoader(
+            trainset_4, batch_size=batch_size, shuffle=True, num_workers=2
+        )
+        trainset_5 = NumpyDataset(X[idx_5], y[idx_5], transform=transform)
+        trainloader_5 = torch.utils.data.DataLoader(
+            trainset_5, batch_size=batch_size, shuffle=True, num_workers=2
+        )
+        trainset_6 = NumpyDataset(X[idx_6], y[idx_6], transform=transform)
+        trainloader_6 = torch.utils.data.DataLoader(
+            trainset_6, batch_size=batch_size, shuffle=True, num_workers=2
+        )
+        trainset_7 = NumpyDataset(X[idx_7], y[idx_7], transform=transform)
+        trainloader_7 = torch.utils.data.DataLoader(
+            trainset_7, batch_size=batch_size, shuffle=True, num_workers=2
+        )
+        trainset_8 = NumpyDataset(X[idx_8], y[idx_8], transform=transform)
+        trainloader_8 = torch.utils.data.DataLoader(
+            trainset_8, batch_size=batch_size, shuffle=True, num_workers=2
+        )
+        trainset_9 = NumpyDataset(X[idx_9], y[idx_9], transform=transform)
+        trainloader_9 = torch.utils.data.DataLoader(
+            trainset_9, batch_size=batch_size, shuffle=True, num_workers=2
+        )
+        trainset_10 = NumpyDataset(X[idx_10], y[idx_10], transform=transform)
+        trainloader_10 = torch.utils.data.DataLoader(
+            trainset_10, batch_size=batch_size, shuffle=True, num_workers=2
+        )
+
+        trainloaders = [trainloader_1, trainloader_2, trainloader_3, trainloader_4, trainloader_5, trainloader_6, trainloader_7, trainloader_8, trainloader_9, trainloader_10]
+
+        return X, y, trainloaders, global_trainloader, [200 for i in range(10)]
+
 
 def get_filename(args, config):
     if args.no_attack:
@@ -412,6 +571,682 @@ def main(args):
         else:
             print("Error in zip pictures")
 
+def multi_user(args):
+    device = torch.device("cuda:0") if torch.cuda.is_available() else "cpu"
+    print(device)
+
+    if not os.path.exists('output'):
+        print("Path doesn't exist: output")
+        exit(1)
+
+    config = loadConfig(config_path, True)
+    print(config)
+    file_name = get_filename(args, config)
+    file_name = f"multi{args.client_num}_" + file_name
+    print(file_name)
+    global batch_size
+    batch_size = config['para']['batch_size']
+    image_size = config['imagesize']
+    n_iter = args.n_iter
+    simulatiry_calculate_interval = args.simulatiry_calculate_interval
+
+    if args.ignore_warning:
+        import warnings
+        warnings.filterwarnings("ignore", category=UserWarning)
+
+    if not args.no_attack and not os.path.exists(f"output/{file_name}"):
+        os.mkdir(f"output/{file_name}")
+
+    X, y, trainloaders, global_trainloader, dataset_nums = prepare_dataloaders_multi(config['dataset'], args.client_num)
+
+    criterion = nn.CrossEntropyLoss()
+    client_num = args.client_num
+    adversary_client_id = 1
+    target_label = args.target_label
+
+    clients = []
+    optimizers = []
+
+    for i in range(client_num):
+        net_x = Net()
+        client_x = FedDSSGDClient(net_x, user_id=i, upload_p=args.upload_p, device=device)
+        client_x.to(device)
+        optimizer_x = optim.SGD(
+            client_x.parameters(), 
+            lr=config['para']['client_1']['lr'], 
+            weight_decay=float(config['para']['client_1']['weight_decay']), 
+            momentum=config['para']['client_1']['momentum']
+        )
+
+        clients.append(client_x)
+        optimizers.append(optimizer_x)
+
+    generator = Generator(nz, nc, ngf)
+    generator.to(device)
+    optimizer_g = optim.SGD(
+        generator.parameters(), 
+        lr=config['para']['generator']['lr'], 
+        weight_decay=float(config['para']['generator']['weight_decay']), 
+        momentum=config['para']['generator']['momentum']
+    )
+    gan_attacker = GAN_Attack(
+        clients[1],
+        target_label,
+        generator,
+        optimizer_g,
+        criterion,
+        nz=nz,
+        device=device,
+    )
+
+    global_model = Net()
+    global_model.to(device)
+
+    if config['update_type'] == 'fedAVG':
+        server = FedDSSGDServer(clients, global_model)
+
+    # summary
+    print("net", global_model)
+    print("Generator", generator)
+    if args.summary_only:
+        return
+
+    fake_batch_size = batch_size
+    fake_label = config['para']['fake_label']
+
+    loss_hist = np.zeros((n_iter + 1, client_num))
+    acc_hist = np.zeros((n_iter + 1, client_num))
+    # similarity_score_hist = np.zeros((n_iter//simulatiry_calculate_interval, 2))
+    similarity_score_hist = np.zeros((n_iter + 1))
+    ambiguity_hist = np.zeros((n_iter + 1))
+
+    if args.privacy:
+        privacy_engines = []
+
+        for client_idx in range(client_num):
+            client = clients[client_idx]
+            trainloader = trainloaders[client_idx]
+            optimizer = optimizers[client_idx]
+            privacy_engine = PrivacyEngine(
+                client, max_grad_norm=args.max_grad_norm, 
+                batch_size=batch_size, 
+                target_delta=args.target_delta,
+                target_epsilon=args.target_epsilon,
+                epochs=n_iter,
+                # noise_multiplier=args.noise_multiplier, 
+                sample_size=len(trainloader)
+            )
+            privacy_engine.attach(optimizer)
+            privacy_engines.append(privacy_engine)
+        
+    for epoch in range(n_iter):
+        for client_idx in range(client_num):
+            client = clients[client_idx]
+            trainloader = trainloaders[client_idx]
+            optimizer = optimizers[client_idx]
+
+            running_loss = 0.0
+            for _, data in enumerate(trainloader, 0):
+                # get the inputs; data is a list of [inputs, labels]
+                inputs, labels = data
+                inputs = inputs.to(device)
+                labels = labels.to(device)
+
+                if not args.no_attack:
+                    if epoch >= 1 and client_idx == adversary_client_id:
+                        fake_image = gan_attacker.attack(fake_batch_size)
+                        inputs = torch.cat([inputs, fake_image])
+                        labels = torch.cat(
+                            [
+                                labels,
+                                torch.tensor([fake_label] * fake_batch_size, device=device),
+                            ]
+                        )
+
+                # zero the parameter gradients
+                optimizer.zero_grad()
+
+                # forward + backward + optimize
+                outputs = client(inputs)
+                loss = criterion(outputs, labels.to(torch.int64))
+                loss.backward()
+                optimizer.step()
+
+                running_loss += loss.item()
+
+            # print(
+            #     f"epoch {epoch}: client-{client_idx+1}",
+            #     running_loss / dataset_nums[client_idx],
+            # )
+
+            loss_hist[epoch, client_idx] = running_loss / dataset_nums[client_idx]
+
+        server.update()
+        server.distribtue()
+
+        if not args.no_attack:
+            gan_attacker.update_discriminator()
+            gan_attacker.update_generator(
+                config['para']['generator']['batch_size'], 
+                config['para']['generator']['epoch'], 
+                config['para']['generator']['log_interval']
+            )
+
+        in_preds = []
+        in_label = []
+        with torch.no_grad():
+            for data in global_trainloader:
+                inputs, labels = data
+                inputs = inputs.to(device)
+                outputs = server.server_model(inputs)
+                in_preds.append(outputs)
+                in_label.append(labels)
+            in_preds = torch.cat(in_preds)
+            in_label = torch.cat(in_label)
+        tot_loss = np.average(loss_hist[epoch])
+        acc =  accuracy_score(
+                np.array(torch.argmax(in_preds, axis=1).cpu()), np.array(in_label)
+            )
+        print(
+            f"epoch {epoch}: loss:{tot_loss}, accuracy:{acc}"
+        )
+        acc_hist[epoch, :] = acc
+
+        if not args.no_attack:
+            reconstructed_image = gan_attacker.attack(1).cpu().numpy().reshape(28, 28)
+            ambiguity_hist[epoch] = ambiguity_cal(reconstructed_image)
+            reconstructed_error =  reconstruction_error_cal(X, y, target_label, reconstructed_image, "my")
+            print(
+                "reconstrunction error is ",
+                reconstructed_error,
+                "ambiguity is ",
+                ambiguity_hist[epoch]
+            )
+            # target_imgs = X[np.where(y == target_label)[0][:10], :, :]
+            similarity_score_hist[epoch] = reconstructed_error
+            # similarity calculation
+            # if (epoch + 1) % simulatiry_calculate_interval == 0:
+            #     atk_img = reconstructed_image
+            #     similarity_score_mr = np.max([similarity_cal(atk_img, i, "mr") for i in target_imgs])
+            #     similarity_score_ssim = np.max([similarity_cal(atk_img, i, "ssim") for i in target_imgs])
+            #     print("-"*100)
+            #     print(f"similarity: mr:{similarity_score_mr}, ssim:{similarity_score_ssim}")
+            #     similarity_score_hist[(epoch + 1)//simulatiry_calculate_interval - 1, 0] = similarity_score_mr
+            #     similarity_score_hist[(epoch + 1)//simulatiry_calculate_interval - 1, 1] = similarity_score_ssim
+            # print(reconstructed_image)
+            plt.cla()
+            fig = plt.figure(frameon=False)
+            fig.set_size_inches(image_size, image_size)
+            ax = plt.Axes(fig, [0., 0., 1., 1.])
+            ax.set_axis_off()
+            fig.add_axes(ax)
+            plt.imshow(reconstructed_image * 0.5 + 0.5, vmin=-1, vmax=1, cmap='gray', )
+            plt.savefig(f"output/{file_name}/{epoch}.png")
+    save_pkl(loss_hist, "loss", file_name)
+    save_pkl(acc_hist, "acc", file_name)
+    save_pkl(similarity_score_hist, "similarity_score", file_name)
+    save_pkl(ambiguity_hist, "ambiguity", file_name)
+    if not args.no_attack:
+        if not os.system(f"zip -q output/pic/{file_name}.zip output/{file_name}/*.png"):
+            os.system(f"rm -r output/{file_name}")
+        else:
+            print("Error in zip pictures")
+
+def five_user(args):
+    device = torch.device("cuda:0") if torch.cuda.is_available() else "cpu"
+    print(device)
+
+
+    if not os.path.exists('output'):
+        print("Path doesn't exist: output")
+        exit(1)
+
+    config = loadConfig(config_path, True)
+    print(config)
+    file_name = get_filename(args, config)
+    print(file_name)
+    global batch_size
+    batch_size = config['para']['batch_size']
+    image_size = config['imagesize']
+    n_iter = args.n_iter
+    simulatiry_calculate_interval = args.simulatiry_calculate_interval
+
+    if args.ignore_warning:
+        import warnings
+        warnings.filterwarnings("ignore", category=UserWarning)
+
+    if not args.no_attack and not os.path.exists(f"output/{file_name}"):
+        os.mkdir(f"output/{file_name}")
+
+    X, y, trainloaders, global_trainloader, dataset_nums = prepare_dataloaders(config['dataset'])
+
+    criterion = nn.CrossEntropyLoss()
+    client_num = 2
+    adversary_client_id = 1
+    target_label = args.target_label
+
+    net_1 = Net()
+    client_1 = FedDSSGDClient(net_1, user_id=0, upload_p=args.upload_p, device=device)
+    client_1.to(device)
+    optimizer_1 = optim.SGD(
+        client_1.parameters(), 
+        lr=config['para']['client_1']['lr'], 
+        weight_decay=float(config['para']['client_1']['weight_decay']), 
+        momentum=config['para']['client_1']['momentum']
+    )
+
+    net_2 = Net()
+    client_2 = FedDSSGDClient(net_2, user_id=1, upload_p=args.upload_p, device=device)
+    client_2.to(device)
+    optimizer_2 = optim.SGD(
+        client_2.parameters(), 
+        lr=config['para']['client_2']['lr'], 
+        weight_decay=float(config['para']['client_2']['weight_decay']), 
+        momentum=config['para']['client_2']['momentum']
+    )
+
+    clients = [client_1, client_2]
+    optimizers = [optimizer_1, optimizer_2]
+
+    generator = Generator(nz, nc, ngf)
+    generator.to(device)
+    optimizer_g = optim.SGD(
+        generator.parameters(), 
+        lr=config['para']['generator']['lr'], 
+        weight_decay=float(config['para']['generator']['weight_decay']), 
+        momentum=config['para']['generator']['momentum']
+    )
+    gan_attacker = GAN_Attack(
+        client_2,
+        target_label,
+        generator,
+        optimizer_g,
+        criterion,
+        nz=nz,
+        device=device,
+    )
+
+    global_model = Net()
+    global_model.to(device)
+
+    if config['update_type'] == 'fedAVG':
+        server = FedDSSGDServer(clients, global_model)
+
+    # summary
+    print("net", net_1)
+    print("Generator", generator)
+    if args.summary_only:
+        return
+
+    fake_batch_size = batch_size
+    fake_label = config['para']['fake_label']
+
+    loss_hist = np.zeros((n_iter + 1, client_num))
+    acc_hist = np.zeros((n_iter + 1, client_num))
+    # similarity_score_hist = np.zeros((n_iter//simulatiry_calculate_interval, 2))
+    similarity_score_hist = np.zeros((n_iter + 1))
+    ambiguity_hist = np.zeros((n_iter + 1))
+
+    if args.privacy:
+        privacy_engines = []
+
+        for client_idx in range(client_num):
+            client = clients[client_idx]
+            trainloader = trainloaders[client_idx]
+            optimizer = optimizers[client_idx]
+            privacy_engine = PrivacyEngine(
+                client, max_grad_norm=args.max_grad_norm, 
+                batch_size=batch_size, 
+                target_delta=args.target_delta,
+                target_epsilon=args.target_epsilon,
+                epochs=n_iter,
+                # noise_multiplier=args.noise_multiplier, 
+                sample_size=len(trainloader)
+            )
+            privacy_engine.attach(optimizer)
+            privacy_engines.append(privacy_engine)
+        
+    for epoch in range(n_iter):
+        for client_idx in range(client_num):
+            client = clients[client_idx]
+            trainloader = trainloaders[client_idx]
+            optimizer = optimizers[client_idx]
+
+            running_loss = 0.0
+            for _, data in enumerate(trainloader, 0):
+                # get the inputs; data is a list of [inputs, labels]
+                inputs, labels = data
+                inputs = inputs.to(device)
+                labels = labels.to(device)
+
+                if not args.no_attack:
+                    if epoch >= 1 and client_idx == adversary_client_id:
+                        fake_image = gan_attacker.attack(fake_batch_size)
+                        inputs = torch.cat([inputs, fake_image])
+                        labels = torch.cat(
+                            [
+                                labels,
+                                torch.tensor([fake_label] * fake_batch_size, device=device),
+                            ]
+                        )
+
+                # zero the parameter gradients
+                optimizer.zero_grad()
+
+                # forward + backward + optimize
+                outputs = client(inputs)
+                loss = criterion(outputs, labels.to(torch.int64))
+                loss.backward()
+                optimizer.step()
+
+                running_loss += loss.item()
+
+            # print(
+            #     f"epoch {epoch}: client-{client_idx+1}",
+            #     running_loss / dataset_nums[client_idx],
+            # )
+
+            loss_hist[epoch, client_idx] = running_loss / dataset_nums[client_idx]
+
+        server.update()
+        server.distribtue()
+
+        if not args.no_attack:
+            gan_attacker.update_discriminator()
+            gan_attacker.update_generator(
+                config['para']['generator']['batch_size'], 
+                config['para']['generator']['epoch'], 
+                config['para']['generator']['log_interval']
+            )
+
+        in_preds = []
+        in_label = []
+        with torch.no_grad():
+            for data in global_trainloader:
+                inputs, labels = data
+                inputs = inputs.to(device)
+                outputs = server.server_model(inputs)
+                in_preds.append(outputs)
+                in_label.append(labels)
+            in_preds = torch.cat(in_preds)
+            in_label = torch.cat(in_label)
+        tot_loss = np.average(loss_hist[epoch])
+        acc =  accuracy_score(
+                np.array(torch.argmax(in_preds, axis=1).cpu()), np.array(in_label)
+            )
+        print(
+            f"epoch {epoch}: loss:{tot_loss}, accuracy:{acc}"
+        )
+        acc_hist[epoch, 0] = acc
+        acc_hist[epoch, 1] = acc
+
+        if not args.no_attack:
+            reconstructed_image = gan_attacker.attack(1).cpu().numpy().reshape(28, 28)
+            ambiguity_hist[epoch] = ambiguity_cal(reconstructed_image)
+            reconstructed_error =  reconstruction_error_cal(X, y, target_label, reconstructed_image, "my")
+            print(
+                "reconstrunction error is ",
+                reconstructed_error,
+                "ambiguity is ",
+                ambiguity_hist[epoch]
+            )
+            # target_imgs = X[np.where(y == target_label)[0][:10], :, :]
+            similarity_score_hist[epoch] = reconstructed_error
+            # similarity calculation
+            # if (epoch + 1) % simulatiry_calculate_interval == 0:
+            #     atk_img = reconstructed_image
+            #     similarity_score_mr = np.max([similarity_cal(atk_img, i, "mr") for i in target_imgs])
+            #     similarity_score_ssim = np.max([similarity_cal(atk_img, i, "ssim") for i in target_imgs])
+            #     print("-"*100)
+            #     print(f"similarity: mr:{similarity_score_mr}, ssim:{similarity_score_ssim}")
+            #     similarity_score_hist[(epoch + 1)//simulatiry_calculate_interval - 1, 0] = similarity_score_mr
+            #     similarity_score_hist[(epoch + 1)//simulatiry_calculate_interval - 1, 1] = similarity_score_ssim
+            # print(reconstructed_image)
+            plt.cla()
+            fig = plt.figure(frameon=False)
+            fig.set_size_inches(image_size, image_size)
+            ax = plt.Axes(fig, [0., 0., 1., 1.])
+            ax.set_axis_off()
+            fig.add_axes(ax)
+            plt.imshow(reconstructed_image * 0.5 + 0.5, vmin=-1, vmax=1, cmap='gray', )
+            plt.savefig(f"output/{file_name}/{epoch}.png")
+    save_pkl(loss_hist, "loss", file_name)
+    save_pkl(acc_hist, "acc", file_name)
+    save_pkl(similarity_score_hist, "similarity_score", file_name)
+    save_pkl(ambiguity_hist, "ambiguity", file_name)
+    if not args.no_attack:
+        if not os.system(f"zip -q output/pic/{file_name}.zip output/{file_name}/*.png"):
+            os.system(f"rm -r output/{file_name}")
+        else:
+            print("Error in zip pictures")
+
+def ten_user(args):
+    device = torch.device("cuda:0") if torch.cuda.is_available() else "cpu"
+    print(device)
+
+
+    if not os.path.exists('output'):
+        print("Path doesn't exist: output")
+        exit(1)
+
+    config = loadConfig(config_path, True)
+    print(config)
+    file_name = get_filename(args, config)
+    print(file_name)
+    global batch_size
+    batch_size = config['para']['batch_size']
+    image_size = config['imagesize']
+    n_iter = args.n_iter
+    simulatiry_calculate_interval = args.simulatiry_calculate_interval
+
+    if args.ignore_warning:
+        import warnings
+        warnings.filterwarnings("ignore", category=UserWarning)
+
+    if not args.no_attack and not os.path.exists(f"output/{file_name}"):
+        os.mkdir(f"output/{file_name}")
+
+    X, y, trainloaders, global_trainloader, dataset_nums = prepare_dataloaders(config['dataset'])
+
+    criterion = nn.CrossEntropyLoss()
+    client_num = 2
+    adversary_client_id = 1
+    target_label = args.target_label
+
+    net_1 = Net()
+    client_1 = FedDSSGDClient(net_1, user_id=0, upload_p=args.upload_p, device=device)
+    client_1.to(device)
+    optimizer_1 = optim.SGD(
+        client_1.parameters(), 
+        lr=config['para']['client_1']['lr'], 
+        weight_decay=float(config['para']['client_1']['weight_decay']), 
+        momentum=config['para']['client_1']['momentum']
+    )
+
+    net_2 = Net()
+    client_2 = FedDSSGDClient(net_2, user_id=1, upload_p=args.upload_p, device=device)
+    client_2.to(device)
+    optimizer_2 = optim.SGD(
+        client_2.parameters(), 
+        lr=config['para']['client_2']['lr'], 
+        weight_decay=float(config['para']['client_2']['weight_decay']), 
+        momentum=config['para']['client_2']['momentum']
+    )
+
+    clients = [client_1, client_2]
+    optimizers = [optimizer_1, optimizer_2]
+
+    generator = Generator(nz, nc, ngf)
+    generator.to(device)
+    optimizer_g = optim.SGD(
+        generator.parameters(), 
+        lr=config['para']['generator']['lr'], 
+        weight_decay=float(config['para']['generator']['weight_decay']), 
+        momentum=config['para']['generator']['momentum']
+    )
+    gan_attacker = GAN_Attack(
+        client_2,
+        target_label,
+        generator,
+        optimizer_g,
+        criterion,
+        nz=nz,
+        device=device,
+    )
+
+    global_model = Net()
+    global_model.to(device)
+
+    if config['update_type'] == 'fedAVG':
+        server = FedDSSGDServer(clients, global_model)
+
+    # summary
+    print("net", net_1)
+    print("Generator", generator)
+    if args.summary_only:
+        return
+
+    fake_batch_size = batch_size
+    fake_label = config['para']['fake_label']
+
+    loss_hist = np.zeros((n_iter + 1, client_num))
+    acc_hist = np.zeros((n_iter + 1, client_num))
+    # similarity_score_hist = np.zeros((n_iter//simulatiry_calculate_interval, 2))
+    similarity_score_hist = np.zeros((n_iter + 1))
+    ambiguity_hist = np.zeros((n_iter + 1))
+
+    if args.privacy:
+        privacy_engines = []
+
+        for client_idx in range(client_num):
+            client = clients[client_idx]
+            trainloader = trainloaders[client_idx]
+            optimizer = optimizers[client_idx]
+            privacy_engine = PrivacyEngine(
+                client, max_grad_norm=args.max_grad_norm, 
+                batch_size=batch_size, 
+                target_delta=args.target_delta,
+                target_epsilon=args.target_epsilon,
+                epochs=n_iter,
+                # noise_multiplier=args.noise_multiplier, 
+                sample_size=len(trainloader)
+            )
+            privacy_engine.attach(optimizer)
+            privacy_engines.append(privacy_engine)
+        
+    for epoch in range(n_iter):
+        for client_idx in range(client_num):
+            client = clients[client_idx]
+            trainloader = trainloaders[client_idx]
+            optimizer = optimizers[client_idx]
+
+            running_loss = 0.0
+            for _, data in enumerate(trainloader, 0):
+                # get the inputs; data is a list of [inputs, labels]
+                inputs, labels = data
+                inputs = inputs.to(device)
+                labels = labels.to(device)
+
+                if not args.no_attack:
+                    if epoch >= 1 and client_idx == adversary_client_id:
+                        fake_image = gan_attacker.attack(fake_batch_size)
+                        inputs = torch.cat([inputs, fake_image])
+                        labels = torch.cat(
+                            [
+                                labels,
+                                torch.tensor([fake_label] * fake_batch_size, device=device),
+                            ]
+                        )
+
+                # zero the parameter gradients
+                optimizer.zero_grad()
+
+                # forward + backward + optimize
+                outputs = client(inputs)
+                loss = criterion(outputs, labels.to(torch.int64))
+                loss.backward()
+                optimizer.step()
+
+                running_loss += loss.item()
+
+            # print(
+            #     f"epoch {epoch}: client-{client_idx+1}",
+            #     running_loss / dataset_nums[client_idx],
+            # )
+
+            loss_hist[epoch, client_idx] = running_loss / dataset_nums[client_idx]
+
+        server.update()
+        server.distribtue()
+
+        if not args.no_attack:
+            gan_attacker.update_discriminator()
+            gan_attacker.update_generator(
+                config['para']['generator']['batch_size'], 
+                config['para']['generator']['epoch'], 
+                config['para']['generator']['log_interval']
+            )
+
+        in_preds = []
+        in_label = []
+        with torch.no_grad():
+            for data in global_trainloader:
+                inputs, labels = data
+                inputs = inputs.to(device)
+                outputs = server.server_model(inputs)
+                in_preds.append(outputs)
+                in_label.append(labels)
+            in_preds = torch.cat(in_preds)
+            in_label = torch.cat(in_label)
+        tot_loss = np.average(loss_hist[epoch])
+        acc =  accuracy_score(
+                np.array(torch.argmax(in_preds, axis=1).cpu()), np.array(in_label)
+            )
+        print(
+            f"epoch {epoch}: loss:{tot_loss}, accuracy:{acc}"
+        )
+        acc_hist[epoch, 0] = acc
+        acc_hist[epoch, 1] = acc
+
+        if not args.no_attack:
+            reconstructed_image = gan_attacker.attack(1).cpu().numpy().reshape(28, 28)
+            ambiguity_hist[epoch] = ambiguity_cal(reconstructed_image)
+            reconstructed_error =  reconstruction_error_cal(X, y, target_label, reconstructed_image, "my")
+            print(
+                "reconstrunction error is ",
+                reconstructed_error,
+                "ambiguity is ",
+                ambiguity_hist[epoch]
+            )
+            # target_imgs = X[np.where(y == target_label)[0][:10], :, :]
+            similarity_score_hist[epoch] = reconstructed_error
+            # similarity calculation
+            # if (epoch + 1) % simulatiry_calculate_interval == 0:
+            #     atk_img = reconstructed_image
+            #     similarity_score_mr = np.max([similarity_cal(atk_img, i, "mr") for i in target_imgs])
+            #     similarity_score_ssim = np.max([similarity_cal(atk_img, i, "ssim") for i in target_imgs])
+            #     print("-"*100)
+            #     print(f"similarity: mr:{similarity_score_mr}, ssim:{similarity_score_ssim}")
+            #     similarity_score_hist[(epoch + 1)//simulatiry_calculate_interval - 1, 0] = similarity_score_mr
+            #     similarity_score_hist[(epoch + 1)//simulatiry_calculate_interval - 1, 1] = similarity_score_ssim
+            # print(reconstructed_image)
+            plt.cla()
+            fig = plt.figure(frameon=False)
+            fig.set_size_inches(image_size, image_size)
+            ax = plt.Axes(fig, [0., 0., 1., 1.])
+            ax.set_axis_off()
+            fig.add_axes(ax)
+            plt.imshow(reconstructed_image * 0.5 + 0.5, vmin=-1, vmax=1, cmap='gray', )
+            plt.savefig(f"output/{file_name}/{epoch}.png")
+    save_pkl(loss_hist, "loss", file_name)
+    save_pkl(acc_hist, "acc", file_name)
+    save_pkl(similarity_score_hist, "similarity_score", file_name)
+    save_pkl(ambiguity_hist, "ambiguity", file_name)
+    if not args.no_attack:
+        if not os.system(f"zip -q output/pic/{file_name}.zip output/{file_name}/*.png"):
+            os.system(f"rm -r output/{file_name}")
+        else:
+            print("Error in zip pictures")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -428,8 +1263,12 @@ if __name__ == "__main__":
     parser.add_argument("--target_label", type=int, default=3)
     parser.add_argument("--n_iter", type=int, default=200)
     parser.add_argument("--upload_p", type=float, default=1)
+    parser.add_argument("--client_num", type=int, default=2)
     args = parser.parse_args()
     time_start = time.time()
-    main(args)
+    if args.client_num == 2:
+        main(args)
+    else:
+        multi_user(args)
     print("start at:" + time.asctime(time.localtime(time_start)))
     print("Finish at" + time.asctime(time.localtime(time.time())))
