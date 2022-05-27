@@ -42,7 +42,7 @@ def read_pkl_origin(filename, mode, client_num=2):
 
     return server_acc
 
-def plot_acc_with_order(exp_name: str, pkl_file: list, legends = [], mode="acc", line_type="smooth", save=True, plot_range=(0, 200), client_num=2):
+def plot_acc_with_order(exp_name: str, pkl_file: list, legends = [], mode="acc", line_type="smooth", save=True, plot_range=(0, 200), client_num=[]):
     plt.xticks(fontsize=10.5)
     plt.yticks(fontsize=10.5)
     # exp_name = get_exp_name(pkl_file[0])
@@ -74,8 +74,10 @@ def plot_acc_with_order(exp_name: str, pkl_file: list, legends = [], mode="acc",
     acc = pd.DataFrame()
 
     n = len(pkl_file)
+    if not client_num:
+        client_num = [2 for _ in range(n)]
     for k in range(n):
-        y[k] = read_pkl_origin(pkl_file[k], mode=mode, client_num=client_num)
+        y[k] = read_pkl_origin(pkl_file[k], mode=mode, client_num=client_num[k])
         acc[k] = y[k][start:end]
         print(round(acc[k], 2).tolist())
         if line_type == "smooth":
@@ -245,13 +247,16 @@ if __name__ == "__main__":
 
     plt.figure().set_size_inches(7,3.5)
     file_list = [
-        # "target3_normal_up1.0_gepoch5_np_attack.pkl",
+        "target3_normal_up1.0_gepoch5_np_attack.pkl",
         "multi3_target3_i200_normal_up1_gepoch5_np_attack.pkl",
+        "multi5_target3_i200_normal_up1_gepoch5_np_attack.pkl",
+        "multi10_target3_i200_normal_up1_gepoch5_np_attack.pkl",
         # "dp_up1.0_n1_d1.0_e100.0_np_noattack.pkl",
         # "dp_up1.0_n1_d1.0_e20.0_np_noattack.pkl",
         # "dp_up1.0_n1_d1.0_e10.0_np_noattack.pkl",
     ]
-    # legends = ["user=3"]
+    client_num = [2, 3, 5, 10]
+    legends = ["user=2", "user=3", "user=5", "user=10"]
     exp_name = "MNIST 多用户GAN攻击"
     plt.rc('axes', unicode_minus=False)
     plt.subplot(121)
@@ -259,14 +264,14 @@ if __name__ == "__main__":
         legends,
         mode="acc",
         save=False,
-        client_num=3
+        client_num=client_num
     )
     plt.subplot(122)
     plot_acc_with_order(exp_name, file_list,
         legends,
         mode="loss",
         save=False,
-        client_num=3
+        client_num=client_num
     )
     plt.savefig(f'/home/shengy/luoshenseeker/AIJack/output/plot_result/{exp_name}.{plot_format}', format=plot_format, dpi=600, bbox_inches="tight")
     plt.clf()
